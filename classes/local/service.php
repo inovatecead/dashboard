@@ -11,39 +11,170 @@ class service {
 
         // Cursos em andamento do usuário com categorias.
         $courses = enrol_get_users_courses($user->id, true, 'id,shortname,fullname,startdate,enddate,visible,category');
-        $coursesarr = [];
-        $courseids = [];
+        $coursesarr     = [];
+        $courseids      = [];
         $coursesByCategory = [];
-        
+        $coursesByPolo     = [];
+
+        // Filtrar visíveis e coletar IDs de categorias
+        $visiblecourses = [];
         foreach ($courses as $c) {
             if (!$c->visible) { continue; }
-            
-            // Buscar categoria do curso
-            $category = $DB->get_record('course_categories', ['id' => $c->category], 'id,name,path');
-            $categoryName = $category ? format_string($category->name) : get_string('uncategorized', 'moodle');
-            
-            // Inicializar array da categoria se não existir
-            if (!isset($coursesByCategory[$categoryName])) {
-                $coursesByCategory[$categoryName] = [];
-            }
-            
-            // Adicionar curso à categoria
-            $coursesByCategory[$categoryName][] = [
-                'id' => $c->id,
-                'fullname' => format_string($c->fullname),
-                'url' => (new \moodle_url('/course/view.php', ['id' => $c->id]))->out(false),
-            ];
-            
-            $courseids[] = $c->id;
+            $visiblecourses[] = $c;
+            $courseids[]      = $c->id;
         }
-        
-        // Ordenar categorias alfabeticamente e converter para formato do template
+
+        // Carregar categorias em lote (evita N+1 queries)
+        $categoryids = array_unique(array_column($visiblecourses, 'category'));
+        $categoriesmap = [];
+        if (!empty($categoryids)) {
+            list($incatids, $catparams) = $DB->get_in_or_equal($categoryids, SQL_PARAMS_NAMED, 'cat');
+            foreach ($DB->get_records_sql(
+                "SELECT id, name, path FROM {course_categories} WHERE id $incatids", $catparams
+            ) as $row) {
+                $categoriesmap[(int)$row->id] = $row;
+            }
+        }
+
+        // Extrair IDs de polo (2º elemento do path de cada categoria) e carregar em lote
+        $polocatids = [];
+        foreach ($categoriesmap as $cat) {
+            $parts = array_values(array_filter(explode('/', $cat->path)));
+            $polocatids[] = count($parts) >= 2 ? (int)$parts[1] : (int)$parts[0];
+        }
+        $polocatids = array_unique($polocatids);
+
+        $polocatnamesmap = [];
+        if (!empty($polocatids)) {
+            list($inpoloids, $poloparams) = $DB->get_in_or_equal($polocatids, SQL_PARAMS_NAMED, 'polo');
+            foreach ($DB->get_records_sql(
+                "SELECT id, name FROM {course_categories} WHERE id $inpoloids", $poloparams
+            ) as $row) {
+                // Normalizar: remover prefixo "Polo - " ou "... - Polo - "
+                $raw = format_string($row->name);
+                $normalized = preg_replace('/^.*Polo\s*[-\x{2013}]\s*/ui', '', $raw);
+                $polocatnamesmap[(int)$row->id] = $normalized ?: $raw;
+            }
+        }
+
+        // === Buscar papéis do usuário em todos os níveis de contexto (em lote) ===
+        $systemroles = [];
+        $catroles    = [];   // [category_id => [{rolename, roleshort}, ...]]
+        $courseroles = [];   // [course_id   => [{rolename, roleshort}, ...]]
+
+        $roleassignments = $DB->get_records_sql(
+            "SELECT ra.id, r.name AS rolename, r.shortname,
+                    ctx.contextlevel, ctx.instanceid
+             FROM {role_assignments} ra
+             JOIN {role} r ON r.id = ra.roleid
+             JOIN {context} ctx ON ctx.id = ra.contextid
+             WHERE ra.userid = :userid",
+            ['userid' => $user->id]
+        );
+        $courseidsflip = array_flip($courseids);
+        foreach ($roleassignments as $a) {
+            $roledata = ['rolename' => ($a->rolename ?: $a->shortname), 'roleshort' => $a->shortname];
+            $cl = (int)$a->contextlevel;
+            if ($cl === CONTEXT_SYSTEM) {
+                $systemroles[] = $roledata;
+            } elseif ($cl === CONTEXT_COURSECAT) {
+                $catroles[(int)$a->instanceid][] = $roledata;
+            } elseif ($cl === CONTEXT_COURSE && isset($courseidsflip[(int)$a->instanceid])) {
+                $courseroles[(int)$a->instanceid][] = $roledata;
+            }
+        }
+
+        // Construir agrupamentos por categoria e por polo (incluindo papéis)
+        $usedrolesmap = [];   // [shortname => rolename] dos papéis efetivamente usados
+
+        foreach ($visiblecourses as $c) {
+            $cat = $categoriesmap[(int)$c->category] ?? null;
+            $categoryName = $cat ? format_string($cat->name) : get_string('uncategorized', 'moodle');
+
+            // Determinar nome do polo via path
+            $poloName = null;
+            if ($cat) {
+                $parts = array_values(array_filter(explode('/', $cat->path)));
+                $polocatid = count($parts) >= 2 ? (int)$parts[1] : (int)$parts[0];
+                $poloName  = $polocatnamesmap[$polocatid] ?? null;
+            }
+            $poloName = $poloName ?: get_string('uncategorized', 'moodle');
+
+            // === Computar papéis do usuário neste curso ===
+            $roleslist = $systemroles;
+
+            // Papéis herdados de categoria ancestral
+            if ($cat) {
+                foreach ($catroles as $catid => $catrolelist) {
+                    if (strpos($cat->path . '/', '/' . $catid . '/') !== false
+                            || (int)$cat->id === $catid) {
+                        foreach ($catrolelist as $cr) {
+                            $roleslist[] = $cr;
+                        }
+                    }
+                }
+            }
+
+            // Papéis diretos no curso
+            if (isset($courseroles[$c->id])) {
+                foreach ($courseroles[$c->id] as $r) {
+                    $roleslist[] = $r;
+                }
+            }
+
+            // Deduplicar por shortname
+            $seen        = [];
+            $uniqueroles = [];
+            foreach ($roleslist as $r) {
+                if (!isset($seen[$r['roleshort']])) {
+                    $seen[$r['roleshort']]       = true;
+                    $uniqueroles[]               = $r;
+                    $usedrolesmap[$r['roleshort']] = $r['rolename'];
+                }
+            }
+
+            // Badge: todos os papéis exceto 'student'
+            $badgeroles = array_values(array_filter($uniqueroles,
+                function ($r) { return $r['roleshort'] !== 'student'; }));
+
+            $courseitem = [
+                'id'       => $c->id,
+                'fullname' => format_string($c->fullname),
+                'url'      => (new \moodle_url('/course/view.php', ['id' => $c->id]))->out(false),
+                'hasbadge' => !empty($badgeroles),
+                'roles'    => $badgeroles,
+                'rolescsv' => implode(',', array_column($uniqueroles, 'roleshort')),
+            ];
+
+            $coursesByCategory[$categoryName][] = $courseitem;
+            $coursesByPolo[$poloName][]         = $courseitem;
+        }
+
+        // Montar filtro de papéis
+        $rolefilters = [];
+        foreach ($usedrolesmap as $short => $name) {
+            $rolefilters[] = ['roleshort' => $short, 'rolename' => $name ?: $short];
+        }
+        usort($rolefilters, function ($a, $b) { return strcmp($a['rolename'], $b['rolename']); });
+        $hasrolefilter = count($rolefilters) > 1;
+
+        // Converter agrupamentos para formato do template
         ksort($coursesByCategory);
-        foreach ($coursesByCategory as $categoryName => $courses) {
+        foreach ($coursesByCategory as $categoryName => $catcourses) {
             $coursesarr[] = [
                 'categoryname' => $categoryName,
-                'courses' => $courses,
-                'coursecount' => count($courses)
+                'courses'      => $catcourses,
+                'coursecount'  => count($catcourses),
+            ];
+        }
+
+        ksort($coursesByPolo);
+        $coursesbypoloarr = [];
+        foreach ($coursesByPolo as $poloName => $polocourses) {
+            $coursesbypoloarr[] = [
+                'categoryname' => $poloName,
+                'courses'      => $polocourses,
+                'coursecount'  => count($polocourses),
             ];
         }
 
@@ -133,8 +264,12 @@ class service {
         }
 
         return [
-            'courses' => $coursesarr,
-            'coursesempty' => empty($coursesarr),
+            'courses'        => $coursesarr,
+            'coursesempty'   => empty($coursesarr),
+            'coursesbypolo'  => $coursesbypoloarr,
+            'haspoloview'    => count($coursesbypoloarr) > 1,
+            'rolefilters'    => $rolefilters,
+            'hasrolefilter'  => $hasrolefilter,
             'calendario' => $calendario,
             'hascalendario' => !empty($calendario['hassemestres']),
             'messages' => $messages,

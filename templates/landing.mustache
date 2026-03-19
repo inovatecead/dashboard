@@ -7,16 +7,66 @@
   <div class="pp-grid">
     <!-- Minhas disciplinas -->
     <section class="pp-card">
-      <h3>📚 {{#str}} mycourses, local_dashboard {{/str}}</h3>
-      {{#courses}}
-        <div class="pp-category-group">
-          <h4 class="pp-category-title">{{categoryname}} ({{coursecount}})</h4>
-          {{#courses}}
-            <a class="pp-item" href="{{url}}"><span class="pp-item-title">{{fullname}}</span></a>
-          {{/courses}}
+      <div class="pp-courses-header">
+        <h3>📚 {{#str}} mycourses, local_dashboard {{/str}}</h3>
+        {{#haspoloview}}
+        <div class="pp-view-toggle" role="group">
+          <button class="pp-toggle-view active" id="pp-btn-category"
+                  onclick="ppSwitchView('category')" type="button">
+            {{#str}} view_by_category, local_dashboard {{/str}}
+          </button>
+          <button class="pp-toggle-view" id="pp-btn-polo"
+                  onclick="ppSwitchView('polo')" type="button">
+            🗺️ {{#str}} view_by_polo, local_dashboard {{/str}}
+          </button>
         </div>
-      {{/courses}}
-      {{#coursesempty}}<p class="pp-empty">{{#str}} nocourses, local_dashboard {{/str}}</p>{{/coursesempty}}
+        {{/haspoloview}}
+      </div>
+
+      <!-- Filtro por papel -->
+      {{#hasrolefilter}}
+      <div class="pp-role-filters">
+        <button class="pp-role-btn active" data-role="all" onclick="ppFilterRole(this)" type="button">
+          {{#str}} role_filter_all, local_dashboard {{/str}}
+        </button>
+        {{#rolefilters}}
+          <button class="pp-role-btn" data-role="{{roleshort}}" onclick="ppFilterRole(this)" type="button">{{rolename}}</button>
+        {{/rolefilters}}
+      </div>
+      {{/hasrolefilter}}
+
+      <!-- Visão por Categoria (padrão) -->
+      <div id="pp-view-category">
+        {{#courses}}
+          <div class="pp-category-group">
+            <h4 class="pp-category-title">{{categoryname}} ({{coursecount}})</h4>
+            {{#courses}}
+              <a class="pp-item" href="{{url}}" data-roles="{{rolescsv}}">
+                <span class="pp-item-title">{{fullname}}</span>
+                {{#hasbadge}}<span class="pp-role-badges">{{#roles}}<span class="pp-role-badge">{{rolename}}</span>{{/roles}}</span>{{/hasbadge}}
+              </a>
+            {{/courses}}
+          </div>
+        {{/courses}}
+        {{#coursesempty}}<p class="pp-empty">{{#str}} nocourses, local_dashboard {{/str}}</p>{{/coursesempty}}
+      </div>
+
+      <!-- Visão por Polo -->
+      {{#haspoloview}}
+      <div id="pp-view-polo" style="display:none;">
+        {{#coursesbypolo}}
+          <div class="pp-category-group">
+            <h4 class="pp-category-title pp-polo-title">📍 {{categoryname}} ({{coursecount}})</h4>
+            {{#courses}}
+              <a class="pp-item" href="{{url}}" data-roles="{{rolescsv}}">
+                <span class="pp-item-title">{{fullname}}</span>
+                {{#hasbadge}}<span class="pp-role-badges">{{#roles}}<span class="pp-role-badge">{{rolename}}</span>{{/roles}}</span>{{/hasbadge}}
+              </a>
+            {{/courses}}
+          </div>
+        {{/coursesbypolo}}
+      </div>
+      {{/haspoloview}}
     </section>
 
     <!-- Mensagens -->
@@ -180,11 +230,45 @@
 
 {{#js}}
 require(['jquery'], function($) {
-    // Initialize tooltips for hover details on calendar
     $('[data-toggle="tooltip"]').tooltip({
         container: 'body',
         trigger: 'hover'
     });
 });
+
+window.ppSwitchView = function(view) {
+    var catView  = document.getElementById('pp-view-category');
+    var poloView = document.getElementById('pp-view-polo');
+    var btnCat   = document.getElementById('pp-btn-category');
+    var btnPolo  = document.getElementById('pp-btn-polo');
+    if (!catView || !poloView) { return; }
+    catView.style.display  = view === 'category' ? '' : 'none';
+    poloView.style.display = view === 'polo'     ? '' : 'none';
+    btnCat.classList.toggle('active',  view === 'category');
+    btnPolo.classList.toggle('active', view === 'polo');
+};
+
+window.ppFilterRole = function(btn) {
+    var role = btn.getAttribute('data-role');
+    document.querySelectorAll('.pp-role-btn').forEach(function(b) {
+        b.classList.toggle('active', b === btn);
+    });
+    document.querySelectorAll('.pp-item[data-roles]').forEach(function(item) {
+        if (role === 'all') {
+            item.style.display = '';
+        } else {
+            var roles = item.getAttribute('data-roles').split(',');
+            item.style.display = roles.indexOf(role) !== -1 ? '' : 'none';
+        }
+    });
+    // Ocultar grupos sem itens visíveis
+    document.querySelectorAll('.pp-category-group').forEach(function(group) {
+        var hasVisible = false;
+        group.querySelectorAll('.pp-item').forEach(function(item) {
+            if (item.style.display !== 'none') { hasVisible = true; }
+        });
+        group.style.display = hasVisible ? '' : 'none';
+    });
+};
 {{/js}}
 
