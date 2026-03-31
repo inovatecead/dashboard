@@ -263,6 +263,10 @@ class service {
             }
         }
 
+        // Avisos dinâmicos
+        $active_notices = notices_service::get_active_notices();
+        $notices_ctx    = notices_service::to_template_context($active_notices);
+
         return [
             'courses'        => $coursesarr,
             'coursesempty'   => empty($coursesarr),
@@ -276,6 +280,9 @@ class service {
             'messagesempty' => empty($messages),
             'totalunreadconversations' => $totalunreadconversations,
             'allmessagesurl' => $CFG->wwwroot . '/message/index.php',
+            'notices'        => $notices_ctx,
+            'hasnotices'     => !empty($notices_ctx),
+            'noticesJson'    => json_encode($notices_ctx, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT),
         ];
     }
     

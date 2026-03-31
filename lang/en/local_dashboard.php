@@ -47,3 +47,15 @@ $string['due'] = 'Due';
 // Messages
 $string['nomessages'] = 'No recent messages.';
 $string['goto_messages'] = 'View all messages';
+
+// Notices
+$string['notices_manage'] = 'Manage Notices';
+$string['notice_add'] = 'New Notice';
+$string['notice_edit'] = 'Edit Notice';
+$string['notice_saved'] = 'Notice saved successfully.';
+$string['notice_deleted'] = 'Notice deleted.';
+$string['notices_empty'] = 'No notices found.';
+$string['notice_type_info'] = 'Info';
+$string['notice_type_warning'] = 'Warning';
+$string['notice_type_danger'] = 'Urgent';
+$string['notice_type_success'] = 'Success';

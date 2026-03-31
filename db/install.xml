@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<XMLDB PATH="local/dashboard/db" VERSION="20260331" COMMENT="XMLDB file for local_dashboard"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xsi:noNamespaceSchemaLocation="../../../lib/xmldb/xmldb.xsd"
+>
+  <TABLES>
+    <TABLE NAME="local_dashboard_notices" COMMENT="Avisos dinâmicos exibidos no dashboard">
+      <FIELDS>
+        <FIELD NAME="id" TYPE="int" LENGTH="10" NOTNULL="true" SEQUENCE="true"/>
+        <FIELD NAME="title" TYPE="char" LENGTH="255" NOTNULL="true" SEQUENCE="false" COMMENT="Título do aviso"/>
+        <FIELD NAME="body" TYPE="text" NOTNULL="false" SEQUENCE="false" COMMENT="Texto do aviso (opcional)"/>
+        <FIELD NAME="type" TYPE="char" LENGTH="20" NOTNULL="true" DEFAULT="info" SEQUENCE="false" COMMENT="Tipo: info, warning, danger, success"/>
+        <FIELD NAME="enabled" TYPE="int" LENGTH="1" NOTNULL="true" DEFAULT="1" SEQUENCE="false" COMMENT="1=ativo, 0=inativo"/>
+        <FIELD NAME="sortorder" TYPE="int" LENGTH="10" NOTNULL="true" DEFAULT="0" SEQUENCE="false" COMMENT="Ordem de exibição"/>
+        <FIELD NAME="date_start" TYPE="int" LENGTH="10" NOTNULL="false" SEQUENCE="false" COMMENT="Timestamp de início da exibição (nulo = imediato)"/>
+        <FIELD NAME="date_end" TYPE="int" LENGTH="10" NOTNULL="false" SEQUENCE="false" COMMENT="Timestamp de fim da exibição (nulo = sem fim)"/>
+        <FIELD NAME="timecreated" TYPE="int" LENGTH="10" NOTNULL="true" DEFAULT="0" SEQUENCE="false"/>
+        <FIELD NAME="timemodified" TYPE="int" LENGTH="10" NOTNULL="true" DEFAULT="0" SEQUENCE="false"/>
+        <FIELD NAME="usermodified" TYPE="int" LENGTH="10" NOTNULL="true" DEFAULT="0" SEQUENCE="false"/>
+      </FIELDS>
+      <KEYS>
+        <KEY NAME="primary" TYPE="primary" FIELDS="id"/>
+      </KEYS>
+      <INDEXES>
+        <INDEX NAME="enabled_sortorder" UNIQUE="false" FIELDS="enabled, sortorder"/>
+      </INDEXES>
+    </TABLE>
+  </TABLES>
+</XMLDB>

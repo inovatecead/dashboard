@@ -5,6 +5,51 @@
   </div>
 
   <div class="pp-grid">
+    {{#hasnotices}}
+    <!-- Avisos dinâmicos -->
+    <div class="pp-notices pp-notices-{{notices.0.type}}" id="pp-notices-bar" role="alert">
+      <span class="pp-notices-icon" id="pp-notices-icon">{{notices.0.icon}}</span>
+      <div class="pp-notices-body">
+        <div class="pp-notices-title" id="pp-notices-title">{{notices.0.title}}</div>
+        {{#notices.0.body}}<p class="pp-notices-text" id="pp-notices-text">{{{notices.0.body}}}</p>{{/notices.0.body}}
+      </div>
+      <div class="pp-notices-nav">
+        <span class="pp-notices-counter" id="pp-notices-counter"></span>
+        <button class="pp-notices-btn" id="pp-notices-prev" onclick="ppNoticeNav(-1)" type="button" aria-label="Aviso anterior">&#8592;</button>
+        <button class="pp-notices-btn" id="pp-notices-playpause" onclick="ppNoticeToggleAuto()" type="button" aria-label="Pausar rotação">⏸</button>
+        <button class="pp-notices-btn" id="pp-notices-next" onclick="ppNoticeNav(1)"  type="button" aria-label="Próximo aviso">&#8594;</button>
+      </div>
+    </div>
+    {{/hasnotices}}
+
+    <!-- Mensagens -->
+    <section class="pp-card pp-card-messages">
+      <div class="pp-messages-header">
+        <h3>💬 {{#str}} messages, local_dashboard {{/str}}</h3>
+        <div class="pp-messages-summary">
+          <span class="pp-total-conversations">{{totalunreadconversations}} conversas não lidas</span>
+        </div>
+      </div>
+
+      <div class="pp-messages-grid">
+      {{#messages}}
+        <a class="pp-message-item" href="{{url}}">
+          <div class="pp-message-header">
+            <span class="pp-message-name">{{name}}</span>
+            <span class="pp-message-unread">{{unreadcount}}</span>
+          </div>
+          <div class="pp-message-preview"><span class="pp-message-sender">{{sendername}}</span>{{lastmessage}}</div>
+          <div class="pp-message-time">{{timeago}}</div>
+        </a>
+      {{/messages}}
+      {{#messagesempty}}<p class="pp-empty">Nenhuma mensagem não lida.</p>{{/messagesempty}}
+      </div>
+
+      <div class="pp-card-footer">
+        <a href="{{allmessagesurl}}" class="pp-btn-secondary">Ver todas as mensagens</a>
+      </div>
+    </section>
+
     <!-- Minhas disciplinas -->
     <section class="pp-card">
       <div class="pp-courses-header">
@@ -36,6 +81,7 @@
       {{/hasrolefilter}}
 
       <!-- Visão por Categoria (padrão) -->
+      <div class="pp-courses-list">
       <div id="pp-view-category">
         {{#courses}}
           <div class="pp-category-group">
@@ -67,31 +113,7 @@
         {{/coursesbypolo}}
       </div>
       {{/haspoloview}}
-    </section>
-
-    <!-- Mensagens -->
-    <section class="pp-card">
-      <h3>💬 {{#str}} messages, local_dashboard {{/str}}</h3>
-      
-      <div class="pp-messages-summary">
-        <p class="pp-total-conversations">{{totalunreadconversations}} conversas com mensagens não lidas</p>
-      </div>
-      
-      {{#messages}}
-        <a class="pp-message-item" href="{{url}}">
-          <div class="pp-message-header">
-            <span class="pp-message-name">{{name}}</span>
-            <span class="pp-message-unread">{{unreadcount}}</span>
-          </div>
-          <div class="pp-message-preview"><span class="pp-message-sender">{{sendername}}</span>{{lastmessage}}</div>
-          <div class="pp-message-time">{{timeago}}</div>
-        </a>
-      {{/messages}}
-      {{#messagesempty}}<p class="pp-empty">Nenhuma mensagem não lida.</p>{{/messagesempty}}
-      
-      <div class="pp-card-footer">
-        <a href="{{allmessagesurl}}" class="pp-btn-secondary">Ver todas as mensagens</a>
-      </div>
+      </div>{{! end pp-courses-list }}
     </section>
 
     <!-- Calendário Acadêmico -->
@@ -103,7 +125,7 @@
         <div class="cw-filters">
           <div class="cw-filter-group">
             <label for="cw-semestre-filter">Semestre:</label>
-            <select id="cw-semestre-filter" class="cw-select" onchange="window.location.href='?semestre_id=' + this.value">
+              <select id="cw-semestre-filter" class="cw-select" onchange="cwUpdateFilters()">
               <option value="0">Todos</option>
               {{#calendario.semestre_options}}
                 <option value="{{id}}" {{#selected}}selected{{/selected}}>{{nome}}</option>
@@ -111,18 +133,18 @@
             </select>
           </div>
           <div class="cw-filter-check">
-            <input type="checkbox" id="cw-filter-regular" checked disabled>
-            <label for="cw-filter-regular">Regulares</label>
-          </div>
-          <div class="cw-filter-check">
-            <input type="checkbox" id="cw-filter-reoferta" checked disabled>
+              <input type="checkbox" id="cw-filter-regular" checked onchange="cwUpdateFilters()">
+              <label for="cw-filter-regular">Regulares</label>
+            </div>
+            <div class="cw-filter-check">
+              <input type="checkbox" id="cw-filter-reoferta" checked onchange="cwUpdateFilters()">
             <label for="cw-filter-reoferta">Reofertas</label>
           </div>
         </div>
         
         <!-- Widget do Calendário -->
         {{#calendario.semestres}}
-          <div class="cw-semestre">
+          <div class="cw-semestre" data-semestre-id="{{id}}">
             <div class="cw-semestre-header" style="background-color: {{cor_fundo}}; color: {{cor_texto}};">
               <h4 class="cw-semestre-titulo">{{nome}}</h4>
             </div>
@@ -141,11 +163,12 @@
                 </thead>
                 <tbody>
                   {{#disciplinas}}
-                    <tr class="cw-disciplina-row" 
+                    <tr class="cw-disciplina-row"
+                        data-reoferta="{{#is_reoferta}}1{{/is_reoferta}}{{^is_reoferta}}0{{/is_reoferta}}"
                         data-toggle="tooltip" 
                         data-html="true"
                         data-placement="top"
-                        title="<strong>{{nome}}</strong>{{#codigo}}<br>Código: {{codigo}}{{/codigo}}{{#professor}}<br>Prof: {{professor}}{{/professor}}{{#cargahoraria}}<br>CH: {{cargahoraria}}h{{/cargahoraria}}{{#sala}}<br>Sala: {{sala}}{{/sala}}{{#is_reoferta}}<br><span class='badge badge-warning'>Reoferta</span>{{/is_reoferta}}">
+                        title="<strong>{{nome}}</strong>{{#codigo}}<br>Código: {{codigo}}{{/codigo}}{{#professor}}<br>Prof: {{professor}}{{/professor}}{{#datainicio_fmt}}<br>📅 {{datainicio_fmt}} → {{datafim_fmt}}{{/datainicio_fmt}}{{#cargahoraria}}<br>CH: {{cargahoraria}}h{{/cargahoraria}}{{#sala}}<br>Sala: {{sala}}{{/sala}}{{#is_reoferta}}<br><span class='badge badge-warning'>Reoferta</span>{{/is_reoferta}}">
                       <td class="cw-td-disciplina" style="background-color: {{cor}}; color: {{cor_texto}};">
                         <div class="cw-disc-nome">{{nome}}</div>
                         {{#codigo}}<div class="cw-disc-codigo">{{codigo}}</div>{{/codigo}}
@@ -154,11 +177,9 @@
                       {{#meses_timeline}}
                         <td class="cw-td-timeline">
                           {{#ativo}}
-                            <div class="cw-timeline-bar" 
-                                 style="left: {{pos_inicio}}%; width: {{largura}}%; background-color: {{cor}};">
-                              {{#eh_inicio}}<span class="cw-dia-marker cw-dia-inicio">{{dia_inicio}}</span>{{/eh_inicio}}
-                              {{#eh_fim}}<span class="cw-dia-marker cw-dia-fim">{{dia_fim}}</span>{{/eh_fim}}
-                            </div>
+                            <div class="cw-timeline-bar" style="left: {{pos_inicio}}%; width: {{largura}}%; background-color: {{cor}};"></div>
+                            {{#eh_inicio}}<span class="cw-dia-marker cw-dia-inicio" style="--pos:{{pos_inicio}}%;background-color:{{cor}};color:{{cor_texto}};">{{dia_inicio}}</span>{{/eh_inicio}}
+                            {{#eh_fim}}<span class="cw-dia-marker cw-dia-fim" style="--pos:{{pos_fim}}%;background-color:{{cor}};color:{{cor_texto}};">{{dia_fim}}</span>{{/eh_fim}}
                           {{/ativo}}
                         </td>
                       {{/meses_timeline}}
@@ -174,7 +195,7 @@
               <!-- Mobile: Card List -->
               <div class="cw-mobile-list d-md-none">
                 {{#disciplinas}}
-                  <div class="cw-mobile-card" style="border-left-color: {{cor}};">
+                  <div class="cw-mobile-card" data-reoferta="{{#is_reoferta}}1{{/is_reoferta}}{{^is_reoferta}}0{{/is_reoferta}}" style="border-left-color: {{cor}};">
                     <div class="cw-mobile-header">
                       <div class="cw-mobile-nome" style="color: {{cor}};">
                         {{nome}}
@@ -219,6 +240,7 @@
         <div class="cw-empty">
           <i class="fa fa-calendar-o fa-3x"></i>
           <p>{{#str}} nocalendario, local_dashboard {{/str}}</p>
+          <a href="{{calendario.fullcalendarurl}}" class="pp-btn-secondary" style="margin-top:8px;display:inline-block;">Ver calendário completo</a>
           {{#calendario.canmanage}}
             <a href="{{calendario.manageurl}}" class="btn btn-primary btn-sm">Configurar Calendário</a>
           {{/calendario.canmanage}}
@@ -270,5 +292,122 @@ window.ppFilterRole = function(btn) {
         group.style.display = hasVisible ? '' : 'none';
     });
 };
+
+window.cwUpdateFilters = function() {
+    var selEl = document.getElementById('cw-semestre-filter');
+    var semestreId = selEl ? selEl.value : '0';
+    var regEl = document.getElementById('cw-filter-regular');
+    var reoEl = document.getElementById('cw-filter-reoferta');
+    var showRegular  = regEl  ? regEl.checked  : true;
+    var showReoferta = reoEl  ? reoEl.checked  : true;
+
+    document.querySelectorAll('.cw-semestre').forEach(function(sem) {
+        var semId = sem.getAttribute('data-semestre-id') || '0';
+        var semVisible = (semestreId === '0' || semId === semestreId);
+
+        if (!semVisible) {
+            sem.style.display = 'none';
+            return;
+        }
+
+        // Filter desktop rows
+        var visibleCount = 0;
+        sem.querySelectorAll('tr.cw-disciplina-row').forEach(function(row) {
+            var isReo = row.getAttribute('data-reoferta') === '1';
+            var show  = isReo ? showReoferta : showRegular;
+            row.style.display = show ? '' : 'none';
+            if (show) { visibleCount++; }
+        });
+
+        // Filter mobile cards
+        sem.querySelectorAll('.cw-mobile-card').forEach(function(card) {
+            var isReo = card.getAttribute('data-reoferta') === '1';
+            card.style.display = (isReo ? showReoferta : showRegular) ? '' : 'none';
+        });
+
+        // Hide the whole semestre block only when ALL rows are filtered out
+        var totalRows = sem.querySelectorAll('tr.cw-disciplina-row').length;
+        sem.style.display = (totalRows === 0 || visibleCount > 0) ? '' : 'none';
+    });
+};
+
+// Avisos: navegação manual entre avisos
+(function() {
+    var notices = {{{noticesJson}}};
+    var AUTO_INTERVAL = 6000; // ms entre avisos (altere aqui se quiser)
+    var AUTO_ENABLED  = true; // começa com rotação ativa
+
+    if (!notices || notices.length < 2) {
+        var prev = document.getElementById('pp-notices-prev');
+        var next = document.getElementById('pp-notices-next');
+        var pp   = document.getElementById('pp-notices-playpause');
+        if (prev) { prev.style.display = 'none'; }
+        if (next) { next.style.display = 'none'; }
+        if (pp)   { pp.style.display   = 'none'; }
+        return;
+    }
+
+    var current   = 0;
+    var timer     = null;
+    var bar       = document.getElementById('pp-notices-bar');
+    var titleEl   = document.getElementById('pp-notices-title');
+    var textEl    = document.getElementById('pp-notices-text');
+    var iconEl    = document.getElementById('pp-notices-icon');
+    var counter   = document.getElementById('pp-notices-counter');
+    var ppBtn     = document.getElementById('pp-notices-playpause');
+
+    function render(idx) {
+        var n = notices[idx];
+        if (!n || !bar) { return; }
+        bar.className = 'pp-notices pp-notices-' + n.type;
+        if (titleEl) { titleEl.textContent = n.title; }
+        if (textEl)  { textEl.innerHTML = n.body || ''; textEl.style.display = n.body ? '' : 'none'; }
+        if (iconEl)  { iconEl.textContent = n.icon; }
+        if (counter) { counter.textContent = (idx + 1) + ' / ' + notices.length; }
+    }
+
+    function startTimer() {
+        stopTimer();
+        if (!AUTO_ENABLED) { return; }
+        timer = setInterval(function() {
+            current = (current + 1) % notices.length;
+            render(current);
+        }, AUTO_INTERVAL);
+    }
+
+    function stopTimer() {
+        if (timer) { clearInterval(timer); timer = null; }
+    }
+
+    window.ppNoticeNav = function(dir) {
+        current = (current + dir + notices.length) % notices.length;
+        render(current);
+        // Reinicia o timer ao navegar manualmente
+        if (AUTO_ENABLED) { startTimer(); }
+    };
+
+    window.ppNoticeToggleAuto = function() {
+        AUTO_ENABLED = !AUTO_ENABLED;
+        if (AUTO_ENABLED) {
+            startTimer();
+            if (ppBtn) { ppBtn.textContent = '⏸'; ppBtn.setAttribute('aria-label', 'Pausar rotação'); }
+        } else {
+            stopTimer();
+            if (ppBtn) { ppBtn.textContent = '▶'; ppBtn.setAttribute('aria-label', 'Retomar rotação'); }
+        }
+    };
+
+    // Pausa ao passar o mouse ou focar com teclado
+    if (bar) {
+        bar.addEventListener('mouseenter', stopTimer);
+        bar.addEventListener('focusin',    stopTimer);
+        bar.addEventListener('mouseleave', function() { if (AUTO_ENABLED) { startTimer(); } });
+        bar.addEventListener('focusout',   function() { if (AUTO_ENABLED) { startTimer(); } });
+    }
+
+    render(0);
+    if (counter) { counter.textContent = '1 / ' + notices.length; }
+    startTimer();
+})();
 {{/js}}
 

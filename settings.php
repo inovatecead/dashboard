@@ -2,6 +2,13 @@
 defined('MOODLE_INTERNAL') || die();
 
 if ($hassiteconfig) {
+    // Register external admin page for notices management.
+    $ADMIN->add('localplugins', new admin_externalpage(
+        'local_dashboard_notices',
+        get_string('notices_manage', 'local_dashboard'),
+        new moodle_url('/local/dashboard/manage_notices.php')
+    ));
+
     $settings = new admin_settingpage('local_dashboard', get_string('pluginname', 'local_dashboard'));
 
     // Toggle redirect

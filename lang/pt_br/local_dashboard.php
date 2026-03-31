@@ -47,3 +47,15 @@ $string['due'] = 'Vencimento';
 // Mensagens
 $string['nomessages'] = 'Nenhuma mensagem recente.';
 $string['goto_messages'] = 'Ver todas as mensagens';
+
+// Avisos
+$string['notices_manage'] = 'Gerenciar Avisos';
+$string['notice_add'] = 'Novo Aviso';
+$string['notice_edit'] = 'Editar Aviso';
+$string['notice_saved'] = 'Aviso salvo com sucesso.';
+$string['notice_deleted'] = 'Aviso excluído.';
+$string['notices_empty'] = 'Nenhum aviso cadastrado.';
+$string['notice_type_info'] = 'Informação';
+$string['notice_type_warning'] = 'Aviso';
+$string['notice_type_danger'] = 'Urgente';
+$string['notice_type_success'] = 'Sucesso';
