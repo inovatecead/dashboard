@@ -59,3 +59,5 @@ $string['notice_type_info'] = 'Info';
 $string['notice_type_warning'] = 'Warning';
 $string['notice_type_danger'] = 'Urgent';
 $string['notice_type_success'] = 'Success';
+$string['notices_turma_all'] = 'All cohorts';
+$string['notices_turma_label'] = 'Cohort';

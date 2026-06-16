@@ -59,3 +59,5 @@ $string['notice_type_info'] = 'Informação';
 $string['notice_type_warning'] = 'Aviso';
 $string['notice_type_danger'] = 'Urgente';
 $string['notice_type_success'] = 'Sucesso';
+$string['notices_turma_all'] = 'Todas as turmas';
+$string['notices_turma_label'] = 'Turma';

@@ -263,8 +263,8 @@ class service {
             }
         }
 
-        // Avisos dinâmicos
-        $active_notices = notices_service::get_active_notices();
+        // Avisos dinâmicos (filtrados por turma do usuário)
+        $active_notices = notices_service::get_active_notices((int)$user->id);
         $notices_ctx    = notices_service::to_template_context($active_notices);
 
         return [
@@ -293,7 +293,7 @@ class service {
      * @return array Calendario widget data
      */
     private static function get_calendario_data(\stdClass $user): array {
-        global $CFG;
+        global $CFG, $DB;
         
         // Check if report_calendario plugin exists
         $calendario_lib = $CFG->dirroot . '/report/calendario/lib.php';
@@ -311,8 +311,21 @@ class service {
             return ['hassemestres' => false];
         }
         
-        // Get widget data - show all active semesters, both types
-        return report_calendario_get_widget_data($user->id, 0, true, true);
+        // Get user's turma from custom profile field
+        $user_turma = '';
+        if (!empty($user->id)) {
+            // Get custom profile field ID for turma
+            $fieldid = $DB->get_field('user_info_field', 'id', array('shortname' => 'turma'));
+            if ($fieldid) {
+                $user_turma = $DB->get_field('user_info_data', 'data', array(
+                    'userid' => $user->id,
+                    'fieldid' => $fieldid
+                ));
+            }
+        }
+        
+        // Get widget data - show all active semesters, both types, filtered by user's turma
+        return report_calendario_get_widget_data($user->id, 0, true, true, $user_turma);
     }
 }
 

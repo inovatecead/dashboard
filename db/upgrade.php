@@ -8,6 +8,17 @@ function xmldb_local_dashboard_upgrade($oldversion) {
     global $DB;
     $dbman = $DB->get_manager();
 
+    if ($oldversion < 2026061200) {
+        // Add turma field to notices table.
+        $table = new xmldb_table('local_dashboard_notices');
+        $field = new xmldb_field('turma', XMLDB_TYPE_CHAR, '10', null, null, null, null, 'date_end');
+        if (!$dbman->field_exists($table, $field)) {
+            $dbman->add_field($table, $field);
+        }
+
+        upgrade_plugin_savepoint(true, 2026061200, 'local', 'dashboard');
+    }
+
     if ($oldversion < 2026033101) {
         // Create local_dashboard_notices table.
         $table = new xmldb_table('local_dashboard_notices');

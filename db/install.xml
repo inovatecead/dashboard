@@ -13,6 +13,7 @@
         <FIELD NAME="enabled" TYPE="int" LENGTH="1" NOTNULL="true" DEFAULT="1" SEQUENCE="false" COMMENT="1=ativo, 0=inativo"/>
         <FIELD NAME="sortorder" TYPE="int" LENGTH="10" NOTNULL="true" DEFAULT="0" SEQUENCE="false" COMMENT="Ordem de exibição"/>
         <FIELD NAME="date_start" TYPE="int" LENGTH="10" NOTNULL="false" SEQUENCE="false" COMMENT="Timestamp de início da exibição (nulo = imediato)"/>
+        <FIELD NAME="turma" TYPE="char" LENGTH="10" NOTNULL="false" SEQUENCE="false" COMMENT="Turma/cohort alvo: 2022, 2024 ou nulo = todas"/>
         <FIELD NAME="date_end" TYPE="int" LENGTH="10" NOTNULL="false" SEQUENCE="false" COMMENT="Timestamp de fim da exibição (nulo = sem fim)"/>
         <FIELD NAME="timecreated" TYPE="int" LENGTH="10" NOTNULL="true" DEFAULT="0" SEQUENCE="false"/>
         <FIELD NAME="timemodified" TYPE="int" LENGTH="10" NOTNULL="true" DEFAULT="0" SEQUENCE="false"/>

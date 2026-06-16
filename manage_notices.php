@@ -71,6 +71,7 @@ if ($action === 'save' && $_SERVER['REQUEST_METHOD'] === 'POST') {
     $date_end_str   = optional_param('date_end',   '', PARAM_RAW_TRIMMED);
     $data->date_start = $date_start_str ? strtotime($date_start_str) : null;
     $data->date_end   = $date_end_str   ? strtotime($date_end_str)   : null;
+    $data->turma      = optional_param_array('turma', [], PARAM_TEXT);
 
     notices_service::save_notice($data);
     redirect(
@@ -107,6 +108,7 @@ if ($action === 'add' || $action === 'edit') {
 
     $date_start_val = ($record && $record->date_start) ? date('Y-m-d', $record->date_start) : '';
     $date_end_val   = ($record && $record->date_end)   ? date('Y-m-d', $record->date_end)   : '';
+    $turma_val      = $record ? ($record->turma ?? '') : '';
 
     $types = notices_service::TYPES;
     $type_options = '';
@@ -115,6 +117,11 @@ if ($action === 'add' || $action === 'edit') {
         $label = get_string('notice_type_' . $t, 'local_dashboard');
         $type_options .= "<option value=\"{$t}\"{$sel}>{$label}</option>";
     }
+
+    // Parse stored turma values (comma-separated) into array for checkbox matching.
+    $turma_array = !empty($turma_val) ? explode(',', $turma_val) : [];
+    $checked2022 = in_array('2022', $turma_array) ? ' checked' : '';
+    $checked2024 = in_array('2024', $turma_array) ? ' checked' : '';
 
     $checked = $enabled ? ' checked' : '';
 
@@ -186,6 +193,23 @@ if ($action === 'add' || $action === 'edit') {
           <span>até</span>
           <input type="date" id="nend" name="date_end" class="form-control form-control-sm" style="max-width:160px;" value="{$date_end_val}">
           <small class="text-muted">(deixe vazio = sem restrição)</small>
+        </div>
+      </div>
+
+      <div class="form-group row">
+        <label class="col-md-3 col-form-label" for="nturma">Turma</label>
+        <div class="col-md-9">
+          <div style="display:flex;gap:16px;padding-top:6px;">
+            <label class="custom-control custom-checkbox" style="font-weight:normal;">
+              <input type="checkbox" name="turma[]" value="2022" class="custom-control-input" {$checked2022}>
+              <span class="custom-control-label">Turma 2022</span>
+            </label>
+            <label class="custom-control custom-checkbox" style="font-weight:normal;">
+              <input type="checkbox" name="turma[]" value="2024" class="custom-control-input" {$checked2024}>
+              <span class="custom-control-label">Turma 2024</span>
+            </label>
+            <small class="text-muted" style="padding-top:2px;">(deixe ambos desmarcados = todas as turmas)</small>
+          </div>
         </div>
       </div>
 
@@ -294,6 +318,7 @@ if (empty($notices)) {
         <th style="width:32px;"></th>
         <th>Título</th>
         <th>Tipo</th>
+        <th>Turma</th>
         <th>Ativo</th>
         <th>Início</th>
         <th>Fim</th>
@@ -314,6 +339,7 @@ if (empty($notices)) {
         $date_start = $n->date_start ? userdate($n->date_start, '%d/%m/%Y') : '—';
         $date_end   = $n->date_end   ? userdate($n->date_end,   '%d/%m/%Y') : '—';
         $type_badge = $type_labels[$n->type] ?? s($n->type);
+        $turma_display = !empty($n->turma) ? '<span class="badge badge-info">' . s($n->turma) . '</span>' : '<span class="text-muted">Todas</span>';
 
         $toggle_label = $n->enabled ? 'Desativar' : 'Ativar';
         $actions = '<a href="' . $editurl   . '" class="btn btn-xs btn-outline-primary mr-1">Editar</a>'
@@ -325,6 +351,7 @@ if (empty($notices)) {
            . '<td><span class="drag-handle" title="Arrastar para reordenar">⠿</span></td>'
            . '<td>' . s($n->title) . '</td>'
            . '<td>' . $type_badge . '</td>'
+           . '<td>' . $turma_display . '</td>'
            . '<td>' . $active_badge . '</td>'
            . '<td>' . $date_start . '</td>'
            . '<td>' . $date_end   . '</td>'
