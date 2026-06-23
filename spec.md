@@ -1,7 +1,7 @@
 # Especificação Técnica - local_dashboard (Portal Acadêmico)
 
-**Versão:** 2025101401  
-**Data da Análise:** 8 de janeiro de 2026  
+**Versão:** 2026062300  
+**Data da Análise:** 23 de junho de 2026  
 **Autor:** Análise de Código Automatizada  
 **Compatibilidade:** Moodle 4.0+  
 **Tipo:** Plugin Local (Local Plugin)
@@ -21,12 +21,14 @@
 - Falta de visibilidade de comunicados importantes
 
 ### 1.3 Principais Características
-- ✅ Dashboard unificado com 3 cards principais
+- ✅ Dashboard unificado com 5 seções
 - ✅ Redirecionamento automático após login (configurável)
 - ✅ Sistema de mensagens não lidas com atualização automática
-- ✅ Categorização de cursos por categoria Moodle
-- ✅ Área de anúncios com suporte a HTML e imagens
-- ✅ Sistema de banners configuráveis (até 4)
+- ✅ Categorização de cursos por categoria e por polo
+- ✅ Filtro de disciplinas por papel (role) do usuário
+- ✅ Sistema de avisos dinâmicos com CRUD administrativo
+- ✅ Widget de calendário acadêmico integrado (report_calendario)
+- ✅ Sistema de banners com carrossel automático
 - ✅ Cache otimizado para performance
 - ✅ Design responsivo e moderno
 - ✅ Suporte a múltiplos idiomas (PT-BR e EN)
@@ -43,9 +45,10 @@ local/dashboard/
 ├── index.php                      # Página principal do dashboard
 ├── settings.php                   # Configurações administrativas
 ├── styles.css                     # Estilos CSS
+├── manage_notices.php             # CRUD de avisos dinâmicos
+├── manage_banners.php             # CRUD de banners
 ├── README.md                      # Documentação básica
-├── PLUGIN_REFERENCE.md            # Documentação completa
-├── CHANGELOG.md                   # Histórico de versões
+├── spec.md                        # Especificação técnica
 ├── LICENSE                        # Licença MIT
 ├── .gitignore                     # Controle de versão
 ├── ajax/
@@ -53,10 +56,14 @@ local/dashboard/
 ├── classes/
 │   ├── observers.php              # Observadores de eventos
 │   ├── local/
-│   │   └── service.php            # Lógica de negócio
+│   │   ├── service.php            # Lógica de negócio principal
+│   │   ├── notices_service.php    # Serviço de avisos dinâmicos
+│   │   └── banners_service.php    # Serviço de banners
 │   └── output/
 │       └── renderer.php           # Renderização de templates
 ├── db/
+│   ├── install.xml                # Definição das tabelas
+│   ├── upgrade.php                # Script de upgrade
 │   ├── events.php                 # Registro de observadores
 │   └── caches.php                 # Definições de cache
 ├── js/
@@ -73,16 +80,20 @@ local/dashboard/
 ### 2.2 Componentes Principais
 
 #### 2.2.1 Backend (PHP)
-- **lib.php**: Função pluginfile para servir arquivos (banners)
+- **lib.php**: Função pluginfile para servir arquivos de banners
 - **index.php**: Controller principal do dashboard
-- **classes/local/service.php**: Lógica de coleta de dados
+- **classes/local/service.php**: Lógica de coleta de dados (cursos, mensagens, calendário, avisos, banners)
+- **classes/local/notices_service.php**: CRUD e lógica dos avisos dinâmicos
+- **classes/local/banners_service.php**: CRUD e lógica dos banners com upload de imagem
 - **classes/observers.php**: Observadores de eventos (login, mensagens)
 - **ajax/messages.php**: Endpoint AJAX para contador de mensagens
+- **manage_notices.php**: Página administrativa para gerenciar avisos
+- **manage_banners.php**: Página administrativa para gerenciar banners
 
 #### 2.2.2 Frontend (CSS + JavaScript)
-- **styles.css**: Estilos minificados e otimizados
+- **styles.css**: Estilos otimizados (~200 linhas)
 - **js/message_counter.js**: Auto-refresh a cada 30 segundos
-- **templates/landing.mustache**: Template Mustache do dashboard
+- **templates/landing.mustache**: Template Mustache com JS embutido
 
 #### 2.2.3 Sistema de Cache
 - Cache de mensagens não lidas (5 minutos TTL)
@@ -92,10 +103,41 @@ local/dashboard/
 
 ## 3. Modelo de Dados
 
-### 3.1 Não Possui Tabelas Próprias
-Este plugin **não cria tabelas no banco de dados**. Ele consome dados de tabelas nativas do Moodle:
+### 3.1 Tabelas Próprias
+Este plugin possui **2 tabelas próprias** no banco de dados:
 
-#### Tabelas Utilizadas:
+#### Tabela: `local_dashboard_notices`
+| Campo | Tipo | Descrição |
+|-------|------|-----------|
+| id | INT(10) PK | ID único |
+| title | VARCHAR(255) | Título do aviso |
+| body | TEXT | Corpo do aviso (HTML) |
+| type | VARCHAR(20) | Tipo: info, warning, danger, success |
+| enabled | INT(1) | 1=ativo, 0=inativo |
+| sortorder | INT(10) | Ordem de exibição |
+| date_start | INT(10) | Início da exibição (timestamp, nulo=imediato) |
+| date_end | INT(10) | Fim da exibição (timestamp, nulo=sempre) |
+| turma | VARCHAR(10) | Turma alvo (2022, 2024, ou nulo=all) |
+| timecreated | INT(10) | Timestamp de criação |
+| timemodified | INT(10) | Timestamp de modificação |
+| usermodified | INT(10) | ID do usuário que modificou |
+
+#### Tabela: `local_dashboard_banners`
+| Campo | Tipo | Descrição |
+|-------|------|-----------|
+| id | INT(10) PK | ID único |
+| name | VARCHAR(255) | Nome interno do banner |
+| alt_text | VARCHAR(255) | Texto alternativo (acessibilidade) |
+| link_url | VARCHAR(255) | URL de destino (opcional) |
+| enabled | INT(1) | 1=ativo, 0=inativo |
+| sortorder | INT(10) | Ordem de exibição |
+| timecreated | INT(10) | Timestamp de criação |
+| timemodified | INT(10) | Timestamp de modificação |
+| usermodified | INT(10) | ID do usuário que modificou |
+
+A imagem do banner é armazenada no Moodle File API (file area `banners`, itemid = id do banner).
+
+### 3.2 Tabelas Nativas do Moodle Utilizadas
 - `{user}` - Dados do usuário
 - `{course}` - Lista de cursos
 - `{course_categories}` - Categorias de cursos
@@ -105,7 +147,7 @@ Este plugin **não cria tabelas no banco de dados**. Ele consome dados de tabela
 - `{messages}` - Mensagens individuais
 - `{message_user_actions}` - Ações do usuário (lido/não lido)
 
-### 3.2 Sistema de Cache
+### 3.3 Sistema de Cache
 
 #### Cache: `unread_messages`
 **Definição em `db/caches.php`:**
@@ -141,47 +183,241 @@ Este plugin **não cria tabelas no banco de dados**. Ele consome dados de tabela
 ```php
 [
     'userfullname' => 'Nome Completo',
-    'courses' => [...],           // Disciplinas por categoria
+    'courses' => [...],              // Disciplinas por categoria
     'coursesempty' => false,
-    'messages' => [...],          // Mensagens não lidas (top 5)
+    'coursesbypolo' => [...],        // Disciplinas por polo
+    'haspoloview' => false,
+    'rolefilters' => [...],          // Filtros de papel
+    'hasrolefilter' => false,
+    'messages' => [...],             // Mensagens não lidas (top 5)
     'messagesempty' => false,
     'totalunreadconversations' => 3,
-    'announcements' => [...],     // Anúncios configurados
-    'banners' => [...],           // Banners (até 4)
+    'allmessagesurl' => '/message/index.php',
+    'notices' => [...],              // Avisos dinâmicos ativos
+    'hasnotices' => false,
+    'noticesJson' => '[...]',        // JSON para JS dos avisos
+    'banners' => [...],              // Banners ativos
+    'hasbanners' => false,
+    'bannersmorethanone' => false,
+    'calendario' => [...],           // Dados do calendário acadêmico
+    'hascalendario' => false,
     'mycoursesurl' => '/my/courses.php',
-    'allmessagesurl' => '/message/index.php'
 ]
 ```
 
 ---
 
-### 4.2 Card: Minhas Disciplinas
+### 4.2 Seção: Avisos Dinâmicos (Notices)
 
 #### 4.2.1 Funcionalidade
-Exibe cursos ativos do usuário organizados por categoria.
+- Barra de avisos no topo do dashboard (ocupa largura total)
+- Suporte a múltiplos avisos com navegação (anterior/próximo)
+- Rotação automática a cada 6 segundos
+- Pausa ao passar o mouse
+- 4 tipos: info (azul), warning (amarelo), danger (vermelho), success (verde)
+- Agendamento por data e filtro por turma do usuário
+- Gerenciamento via página admin dedicada
 
-#### 4.2.2 Lógica de Coleta (service.php)
+#### 4.2.2 Tabela: `local_dashboard_notices`
+Ver seção 3.1 para definição completa dos campos.
+
+#### 4.2.3 Lógica de Coleta (notices_service.php)
+```php
+// 1. Buscar campo de perfil 'turma' do usuário
+$userturma = $DB->get_field('user_info_data', 'data', [
+    'userid' => $userid,
+    'fieldid' => $field->id
+]);
+
+// 2. Query filtrando por enabled + datas + turma
+$sql = "SELECT *
+        FROM {local_dashboard_notices}
+        WHERE enabled = 1
+          AND (date_start IS NULL OR date_start <= :now)
+          AND (date_end   IS NULL OR date_end   >= :now)
+          AND (turma IS NULL OR turma = :turma OR FIND_IN_SET(:turma2, turma) > 0)
+        ORDER BY sortorder ASC, id ASC";
+```
+
+#### 4.2.4 Template Context
+```php
+// notices_service::to_template_context()
+[
+    [
+        'id'    => 1,
+        'title' => 'Aviso importante',
+        'body'  => '<p>Conteúdo HTML</p>',
+        'type'  => 'warning',
+        'icon'  => '⚠️',
+    ],
+    ...
+]
+```
+
+#### 4.2.5 JavaScript de Navegação
+```javascript
+var AUTO_INTERVAL = 6000;  // 6 segundos entre avisos
+// Navegação manual: ppNoticeNav(dir)
+// Auto-play: ppNoticeToggleAuto()
+// Pausa ao passar o mouse
+```
+
+---
+
+### 4.3 Seção: Banners / Carrossel
+
+#### 4.3.1 Funcionalidade
+- Exibe banners em formato de imagem entre os avisos e as mensagens
+- Carrossel automático com transição suave (5s entre slides)
+- Indicadores (dots) e setas de navegação
+- Pausa ao passar o mouse
+- Suporte a links opcionais nos banners
+- Se apenas 1 banner ativo → exibe imagem estática sem navegação
+- Se 0 banners ativos → nada é exibido
+- Gerenciamento via página admin com upload de imagem
+
+#### 4.3.2 Tabela: `local_dashboard_banners`
+Ver seção 3.1 para definição completa dos campos.
+
+#### 4.3.3 Lógica de Coleta (banners_service.php)
+```php
+// Buscar banners ativos ordenados
+$banners = $DB->get_records('local_dashboard_banners', ['enabled' => 1], 'sortorder ASC, id ASC');
+
+// Para cada banner, gerar URL da imagem via pluginfile.php
+foreach ($banners as $banner) {
+    $files = $fs->get_area_files($syscontext->id, 'local_dashboard', 'banners', $banner->id, ...);
+    if (!empty($files)) {
+        $file = reset($files);
+        $imageurl = $CFG->wwwroot . '/pluginfile.php/' . $syscontext->id
+                  . '/local_dashboard/banners/' . $banner->id . '/' . $file->get_filename();
+        $banners_ctx[] = [
+            'id'       => $banner->id,
+            'name'     => $banner->name,
+            'alt_text' => $banner->alt_text ?: $banner->name,
+            'link_url' => $banner->link_url ?? '',
+            'has_link' => !empty($banner->link_url),
+            'imageurl' => $imageurl,
+        ];
+    }
+}
+```
+
+#### 4.3.4 Template (Mustache)
+```mustache
+{{#hasbanners}}
+<section class="pp-card pp-card-banners">
+  <div class="pp-banners-carousel" id="pp-banners-carousel">
+    <div class="pp-banners-track" id="pp-banners-track">
+      {{#banners}}
+      <div class="pp-banner-slide">
+        {{#has_link}}
+        <a href="{{link_url}}" target="_blank" rel="noopener" class="pp-banner-link">
+          <img src="{{imageurl}}" alt="{{alt_text}}" class="pp-banner-img" loading="lazy">
+        </a>
+        {{/has_link}}
+        {{^has_link}}
+        <img src="{{imageurl}}" alt="{{alt_text}}" class="pp-banner-img" loading="lazy">
+        {{/has_link}}
+      </div>
+      {{/banners}}
+    </div>
+    {{#bannersmorethanone}}
+    <button class="pp-carousel-btn pp-carousel-prev" ...>&#10094;</button>
+    <button class="pp-carousel-btn pp-carousel-next" ...>&#10095;</button>
+    <div class="pp-carousel-dots" id="pp-carousel-dots"></div>
+    {{/bannersmorethanone}}
+  </div>
+</section>
+{{/hasbanners}}
+```
+
+#### 4.3.5 JavaScript do Carrossel
+```javascript
+var AUTO_INTERVAL = 5000;  // 5 segundos entre slides
+
+function goToSlide(idx) {
+    track.style.transform = 'translateX(-' + (idx * 100) + '%)';
+    // Atualizar dots ativos
+}
+
+function nextSlide() { goToSlide(current + 1); }
+function prevSlide() { goToSlide(current - 1); }
+
+// Auto-play com timer
+// Pausa ao passar o mouse
+// Setas e dots como controle
+```
+
+#### 4.3.6 Servindo Arquivos (lib.php)
+```php
+function local_dashboard_pluginfile($course, $cm, $context, $filearea, $args, $forcedownload, $options = []) {
+    if ($context->contextlevel != CONTEXT_SYSTEM) return false;
+    if ($filearea !== 'banners') return false;
+    
+    require_login();
+    
+    $itemid = array_shift($args);
+    $filename = array_pop($args);
+    $filepath = '/' . implode('/', $args) . '/';
+    
+    $fs = get_file_storage();
+    $file = $fs->get_file($context->id, 'local_dashboard', $filearea, $itemid, $filepath, $filename);
+    if (!$file) return false;
+    
+    send_stored_file($file, 86400, 0, $forcedownload, $options);
+}
+```
+
+---
+
+### 4.5 Card: Minhas Disciplinas
+
+#### 4.5.1 Funcionalidade
+- Exibe cursos ativos do usuário organizados por categoria
+- Alternância entre visão por **Categoria** e visão por **Polo** (toggle)
+- Filtro por papel (role) do usuário (ex: Professor, Tutor, Aluno)
+- Badges de papel exibidos ao lado de cada disciplina
+- Ordenação alfabética por categoria/polo
+
+#### 4.5.2 Lógica de Coleta (service.php)
 ```php
 // 1. Buscar cursos matriculados
-$courses = enrol_get_users_courses($user->id, true, ...);
+$courses = enrol_get_users_courses($user->id, true, 'id,shortname,fullname,category');
 
 // 2. Filtrar apenas visíveis
 foreach ($courses as $c) {
     if (!$c->visible) continue;
-    
-    // 3. Buscar categoria do curso
-    $category = $DB->get_record('course_categories', ...);
-    
-    // 4. Agrupar por categoria
-    $coursesByCategory[$categoryName][] = [...];
+    $visiblecourses[] = $c;
 }
 
-// 5. Ordenar alfabeticamente
-ksort($coursesByCategory);
+// 3. Carregar categorias em lote (evita N+1 queries)
+$categoryids = array_unique(array_column($visiblecourses, 'category'));
+$categoriesmap = $DB->get_records_sql("SELECT id, name, path FROM {course_categories} ...");
+
+// 4. Extrair IDs de polo (2º elemento do path da categoria)
+foreach ($categoriesmap as $cat) {
+    $parts = explode('/', trim($cat->path, '/'));
+    $polocatids[] = (int)$parts[1];
+}
+
+// 5. Buscar papéis do usuário em lote
+$roleassignments = $DB->get_records_sql(
+    "SELECT ra.*, r.name AS rolename, r.shortname, ctx.contextlevel, ctx.instanceid
+     FROM {role_assignments} ra ..."
+);
+
+// 6. Agrupar por categoria e por polo
+$coursesByCategory[$categoryName][] = $courseitem;
+$coursesByPolo[$poloName][] = $courseitem;
+
+// 7. Construir filtro de papéis
+$rolefilters = [['roleshort' => 'student', 'rolename' => 'Aluno'], ...];
 ```
 
-#### 4.2.3 Estrutura de Dados
+#### 4.5.3 Estrutura de Dados
 ```php
+// courses (visão por categoria)
 [
     [
         'categoryname' => 'Ciências Exatas',
@@ -190,263 +426,85 @@ ksort($coursesByCategory);
             [
                 'id' => 123,
                 'fullname' => 'Cálculo I',
-                'url' => '/course/view.php?id=123'
+                'url' => '/course/view.php?id=123',
+                'hasbadge' => true,
+                'roles' => [['rolename' => 'Professor', 'roleshort' => 'teacher'], ...],
+                'rolescsv' => 'teacher,student',
             ],
-            ...
         ]
     ],
-    ...
+]
+
+// rolefilters
+[['roleshort' => 'student', 'rolename' => 'Aluno'], ...]
+```
+
+---
+
+### 4.6 Card: Calendário Acadêmico
+
+#### 4.6.1 Funcionalidade
+- Widget integrado com o plugin `report_calendario`
+- Exibe cronograma das disciplinas em formato de timeline
+- Suporte a múltiplos semestres
+- Filtros por semestre, disciplinas regulares e reofertas
+- Tooltip com detalhes da disciplina ao passar o mouse
+- Versão desktop (tabela) e mobile (cards)
+- Links para calendário completo e gerenciamento
+
+#### 4.6.2 Integração
+```php
+// Verificar se plugin report_calendario está instalado
+$calendario_lib = $CFG->dirroot . '/report/calendario/lib.php';
+if (file_exists($calendario_lib)) {
+    require_once($calendario_lib);
+    if (function_exists('report_calendario_get_widget_data')) {
+        $calendario = report_calendario_get_widget_data($user->id, 0, true, true, $user_turma);
+    }
+}
+```
+
+#### 4.6.3 Estrutura de Dados
+```php
+[
+    'hassemestres' => true,
+    'semestres' => [
+        [
+            'id' => 1,
+            'nome' => '2026.1',
+            'cor_fundo' => '#1e40af',
+            'cor_texto' => '#ffffff',
+            'meses' => [['nome' => 'Jan', 'nome_completo' => 'Janeiro'], ...],
+            'disciplinas' => [
+                [
+                    'nome' => 'Cálculo I',
+                    'codigo' => 'CAL123',
+                    'professor' => 'Dr. Silva',
+                    'datainicio_fmt' => '10/02/2026',
+                    'datafim_fmt' => '15/06/2026',
+                    'cargahoraria' => 60,
+                    'sala' => 'Sala 101',
+                    'cor' => '#3b82f6',
+                    'is_reoferta' => false,
+                    'horario' => 'Seg 19:00-22:00',
+                    'meses_timeline' => [
+                        ['ativo' => true, 'pos_inicio' => 10, 'largura' => 45, ...],
+                    ],
+                ],
+            ],
+        ],
+    ],
+    'fullcalendarurl' => '/report/calendario/index.php',
+    'manageurl' => '/report/calendario/manage.php',
+    'canmanage' => false,
 ]
 ```
 
-#### 4.2.4 Template (Mustache)
-```mustache
-{{#courses}}
-  <div class="pp-category-group">
-    <h4 class="pp-category-title">{{categoryname}} ({{coursecount}})</h4>
-    {{#courses}}
-      <a class="pp-item" href="{{url}}">
-        <span class="pp-item-title">{{fullname}}</span>
-      </a>
-    {{/courses}}
-  </div>
-{{/courses}}
-```
-
 ---
 
-### 4.3 Card: Mensagens
+### 4.7 Redirecionamento Automático após Login
 
-#### 4.3.1 Funcionalidade
-- Exibe contador de conversas não lidas
-- Lista top 5 conversas com mensagens recentes
-- Auto-refresh a cada 30 segundos (AJAX)
-- Link para página completa de mensagens
-
-#### 4.3.2 Lógica de Coleta
-```php
-// 1. Buscar conversas do usuário (até 50)
-$conversations = \core_message\api::get_conversations($user->id, 0, 50);
-
-// 2. Contar conversas não lidas
-$totalunreadconversations = 0;
-foreach ($conversations as $conv) {
-    if ($conv->unreadcount > 0) {
-        $totalunreadconversations++;
-    }
-}
-
-// 3. Filtrar apenas não lidas (top 5)
-$unreadConversations = array_filter($conversations, ...);
-$unreadConversations = array_slice($unreadConversations, 0, 5);
-
-// 4. Para cada conversa
-foreach ($unreadConversations as $conv) {
-    // Buscar membros
-    $members = \core_message\api::get_conversation_members(...);
-    
-    // Buscar última mensagem
-    $lastmessages = \core_message\api::get_conversation_messages(...);
-    
-    // Determinar remetente
-    $sender_name = ($lastmessage->useridfrom == $user->id) 
-        ? 'Você: ' 
-        : fullname($sender) . ': ';
-    
-    // Adicionar ao array
-    $messages[] = [
-        'id' => $conv->id,
-        'name' => fullname($otheruser),
-        'lastmessage' => format_string($lastmessage->text),
-        'sendername' => $sender_name,
-        'timeago' => userdate(...),
-        'unread' => true,
-        'unreadcount' => $conv->unreadcount,
-        'url' => '/message/index.php?convid=' . $conv->id
-    ];
-}
-```
-
-#### 4.3.3 Sistema de Auto-Refresh
-
-**JavaScript (message_counter.js):**
-```javascript
-// Atualiza a cada 30 segundos
-setInterval(updateMessageCounter, 30000);
-
-function updateMessageCounter() {
-    fetch('/local/dashboard/ajax/messages.php', {
-        method: 'POST',
-        body: JSON.stringify({ sesskey: M.cfg.sesskey })
-    })
-    .then(response => response.json())
-    .then(data => {
-        // Atualiza contador com animação
-        const counter = document.querySelector('.pp-kpi');
-        if (currentCount !== newCount) {
-            counter.textContent = newCount;
-            // Animação de escala
-            counter.style.transform = 'scale(1.1)';
-            setTimeout(() => {
-                counter.style.transform = 'scale(1)';
-            }, 300);
-        }
-    });
-}
-```
-
-**AJAX Endpoint (ajax/messages.php):**
-```php
-// 1. Verificar autenticação
-require_login();
-
-// 2. Verificar sesskey
-confirm_sesskey($input['sesskey']);
-
-// 3. Contar conversas não lidas (query customizada)
-$unread = count_unread_conversations_custom($USER->id);
-
-// 4. Retornar JSON
-echo json_encode([
-    'success' => true,
-    'unread' => $unread,
-    'timestamp' => time()
-]);
-```
-
-**Query Customizada:**
-```sql
-SELECT COUNT(DISTINCT mc.id)
-FROM {message_conversations} mc
-JOIN {message_conversation_members} mcm ON mcm.conversationid = mc.id
-WHERE mcm.userid = ?
-  AND EXISTS (
-      SELECT 1 FROM {messages} m
-      WHERE m.conversationid = mc.id
-        AND m.useridfrom != ?
-        AND NOT EXISTS (
-            SELECT 1 FROM {message_user_actions} mua
-            WHERE mua.messageid = m.id
-              AND mua.userid = ?
-              AND mua.action = ?
-        )
-  )
-```
-
----
-
-### 4.4 Card: Calendário Acadêmico (Anúncios)
-
-#### 4.4.1 Funcionalidade
-- Exibe conteúdo de anúncios configurável (HTML)
-- Suporta upload de imagens inline
-- Exibe até 4 banners clicáveis
-- Banners servidos via pluginfile.php
-
-#### 4.4.2 Conteúdo de Texto (Fallback)
-```php
-// 1. Buscar configuração
-$fallback = get_config('local_dashboard', 'announcementsfallback');
-
-// 2. Processar HTML
-$fallback_text = format_text(
-    $fallback['text'] ?? $fallback, 
-    FORMAT_HTML, 
-    ['context' => context_system::instance()]
-);
-
-// 3. Adicionar ao array
-$announcements[] = [
-    'title' => get_string('important_info', 'local_dashboard'),
-    'excerpt' => shorten_text(strip_tags($fallback_text), 140),
-    'fulltext' => $fallback_text,  // HTML completo
-    'time' => userdate(time(), ...),
-    'url' => '#'
-];
-```
-
-#### 4.4.3 Banners Configuráveis
-```php
-for ($i = 1; $i <= 4; $i++) {
-    // 1. Buscar configurações
-    $banner_file = get_config('local_dashboard', "banner{$i}_file");
-    $banner_alt = get_config('local_dashboard', "banner{$i}_alt");
-    $banner_link = get_config('local_dashboard', "banner{$i}_link");
-    
-    if (!empty($banner_file)) {
-        // 2. Buscar arquivo do sistema
-        $fs = get_file_storage();
-        $files = $fs->get_area_files(
-            $syscontext->id, 
-            'local_dashboard', 
-            "banner{$i}", 
-            0, 
-            'sortorder', 
-            false
-        );
-        
-        if (!empty($files)) {
-            $file = reset($files);
-            
-            // 3. Gerar URL via pluginfile.php
-            $banner_url = $CFG->wwwroot . '/pluginfile.php/' 
-                . $syscontext->id . '/local_dashboard/banner' 
-                . $i . '/0/' . $file->get_filename();
-            
-            // 4. Adicionar ao array
-            $banners[] = [
-                'url' => $banner_url,
-                'alt' => $banner_alt ?: "Banner {$i}",
-                'link' => $banner_link ?: '#',
-                'haslink' => !empty($banner_link),
-                'number' => $i
-            ];
-        }
-    }
-}
-```
-
-#### 4.4.4 Servindo Arquivos (lib.php)
-```php
-function local_dashboard_pluginfile($course, $cm, $context, 
-    $filearea, $args, $forcedownload, $options = []) {
-    
-    // 1. Verificar contexto
-    if ($context->contextlevel != CONTEXT_SYSTEM) {
-        return false;
-    }
-    
-    // 2. Validar filearea
-    $fileareas = ['banner1', 'banner2', 'banner3', 'banner4'];
-    if (!in_array($filearea, $fileareas)) {
-        return false;
-    }
-    
-    // 3. Exigir login
-    require_login();
-    
-    // 4. Extrair path
-    $itemid = array_shift($args);
-    $filename = array_pop($args);
-    $filepath = '/' . implode('/', $args) . '/';
-    
-    // 5. Buscar arquivo
-    $fs = get_file_storage();
-    $file = $fs->get_file($context->id, 'local_dashboard', 
-        $filearea, $itemid, $filepath, $filename);
-    
-    if (!$file) return false;
-    
-    // 6. Enviar arquivo (cache: 24h)
-    send_stored_file($file, 86400, 0, $forcedownload, $options);
-}
-```
-
----
-
-### 4.5 Redirecionamento Automático após Login
-
-#### 4.5.1 Observador de Evento (observers.php)
+#### 4.7.1 Observador de Evento (observers.php)
 ```php
 class observers {
     public static function on_login(\core\event\user_loggedin $event) {
@@ -470,20 +528,30 @@ class observers {
 }
 ```
 
-#### 4.5.2 Registro do Observador (db/events.php)
+#### 4.7.2 Registro do Observador (db/events.php)
 ```php
 $observers = [
     [
         'eventname' => '\core\event\user_loggedin',
         'callback'  => '\local_dashboard\observers::on_login',
-        'priority'  => 9999  // Alta prioridade
-    ]
+        'priority'  => 9999
+    ],
+    [
+        'eventname' => '\core\event\message_sent',
+        'callback'  => '\local_dashboard\observers::on_message_sent',
+        'priority'  => 500
+    ],
+    [
+        'eventname' => '\core\event\message_viewed',
+        'callback'  => '\local_dashboard\observers::on_message_viewed',
+        'priority'  => 500
+    ],
 ];
 ```
 
 ---
 
-### 4.6 Sistema de Cache
+### 4.8 Sistema de Cache
 
 #### 4.6.1 Definição (db/caches.php)
 ```php
@@ -540,9 +608,15 @@ public static function on_message_viewed(\core\event\message_viewed $event) {
 ## 5. Configurações Administrativas
 
 ### 5.1 Localização
-**Menu:** `Administração → Plugins → Plugins locais → Portal Acadêmico`
+As configurações do plugin estão distribuídas em **3 páginas** no menu `Administração → Plugins → Plugins locais`:
 
-### 5.2 Opções de Configuração
+| Página | Descrição |
+|--------|-----------|
+| **Portal Acadêmico** | Configurações gerais (redirecionamento, suporte) |
+| **Gerenciar Avisos** | CRUD de avisos dinâmicos |
+| **Gerenciar Banners** | CRUD de banners com upload de imagem |
+
+### 5.2 Opções de Configuração (settings.php)
 
 #### 5.2.1 Redirecionamento
 | Campo | Tipo | Descrição |
@@ -550,28 +624,34 @@ public static function on_message_viewed(\core\event\message_viewed $event) {
 | enabledredirect | checkbox | Redirecionar usuários após login |
 | Padrão | ✅ Habilitado | Exclui guests |
 
-#### 5.2.2 Conteúdo de Anúncios
+#### 5.2.2 Suporte Técnico
 | Campo | Tipo | Descrição |
 |-------|------|-----------|
-| announcementsfallback | htmleditor | Conteúdo do card de anúncios |
-| Suporta | HTML, imagens | Upload inline de imagens |
-| Context | CONTEXT_SYSTEM | Sistema global |
+| supportname | text | Nome do suporte |
+| supportemail | text | E-mail do suporte |
+| supportphone | text | Telefone do suporte |
+| supportwhatsapp | text | URL do WhatsApp |
+| supporthelpdesk | text | URL do portal de helpdesk |
+| supporthours | text | Horário de atendimento |
 
-#### 5.2.3 Banners (4x)
-Para cada banner (1 a 4):
+### 5.3 Gerenciamento de Avisos (manage_notices.php)
+- Lista completa com reordenação drag-and-drop
+- Adicionar/Editar com editor HTML rich text
+- Tipos: Info, Warning, Danger, Success
+- Agendamento por data (início/fim)
+- Filtro por turma (2022, 2024, ou todas)
+- Ativar/Desativar toggle
+- Excluir com confirmação
 
-| Campo | Tipo | Descrição |
-|-------|------|-----------|
-| banner{n}_file | storedfile | Upload de imagem |
-| Formatos | JPG, PNG, GIF, WebP | - |
-| banner{n}_alt | text | Texto alternativo (acessibilidade) |
-| banner{n}_link | url | URL de destino (opcional) |
-
-**Fileasreas:**
-- `banner1` (itemid: 0)
-- `banner2` (itemid: 0)
-- `banner3` (itemid: 0)
-- `banner4` (itemid: 0)
+### 5.4 Gerenciamento de Banners (manage_banners.php)
+- Lista completa com reordenação drag-and-drop
+- Adicionar/Editar com upload de imagem
+- Formatos aceitos: JPG, PNG, GIF, WebP
+- Texto alternativo para acessibilidade
+- Link de destino opcional
+- Preview da imagem atual
+- Ativar/Desativar toggle
+- Excluir com confirmação (remove arquivo + registro)
 
 ---
 
@@ -631,19 +711,24 @@ Para cada banner (1 a 4):
 }
 ```
 
-#### 6.2.4 Banners
+#### 6.2.4 Banners / Carrossel
 ```css
-.pp-banner-image {
-    width: 100%;
-    border-radius: 8px;
-    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
-    transition: transform 0.2s ease;
-}
-
-.pp-banner-link:hover .pp-banner-image {
-    transform: translateY(-2px);
-    box-shadow: 0 4px 12px rgba(0,0,0,0.15);
-}
+.pp-card-banners{grid-column:1/-1;padding:0;overflow:hidden;border-radius:16px;}
+.pp-banners-carousel{position:relative;width:100%;overflow:hidden;background:#f9fafb;}
+.pp-banners-track{display:flex;transition:transform 0.5s ease-in-out;}
+.pp-banner-slide{min-width:100%;flex-shrink:0;}
+.pp-banner-img{display:block;width:100%;height:auto;max-height:320px;object-fit:cover;}
+.pp-carousel-btn{position:absolute;top:50%;transform:translateY(-50%);
+  background:rgba(255,255,255,0.85);border-radius:50%;width:38px;height:38px;
+  cursor:pointer;box-shadow:0 2px 6px rgba(0,0,0,0.12);opacity:0;transition:all 0.2s;}
+.pp-banners-carousel:hover .pp-carousel-btn{opacity:1;}
+.pp-carousel-dots{position:absolute;bottom:12px;left:50%;transform:translateX(-50%);
+  display:flex;gap:8px;background:rgba(0,0,0,0.35);padding:6px 12px;border-radius:20px;
+  opacity:0;transition:opacity 0.3s;}
+.pp-banners-carousel:hover .pp-carousel-dots{opacity:1;}
+.pp-carousel-dot{width:10px;height:10px;border-radius:50%;border:2px solid rgba(255,255,255,0.7);
+  background:transparent;cursor:pointer;}
+.pp-carousel-dot.active{background:#fff;border-color:#fff;transform:scale(1.2);}
 ```
 
 ---
@@ -699,33 +784,39 @@ graph TD
     A[index.php] --> B[service::get_dashboard_data]
     B --> C[Buscar Cursos]
     B --> D[Buscar Mensagens]
-    B --> E[Buscar Anúncios]
+    B --> E[Buscar Avisos]
     B --> F[Buscar Banners]
+    B --> G[Buscar Calendário]
     
     C --> C1[enrol_get_users_courses]
-    C1 --> C2[Agrupar por categoria]
-    C2 --> C3[Ordenar alfabeticamente]
+    C1 --> C2[Buscar papéis do usuário]
+    C2 --> C3[Agrupar por categoria + polo]
+    C3 --> C4[Construir filtros de papel]
     
     D --> D1[get_conversations]
     D1 --> D2[Filtrar não lidas]
     D2 --> D3[Top 5 conversas]
     D3 --> D4[Buscar última mensagem]
     
-    E --> E1[get_config fallback]
-    E1 --> E2[format_text HTML]
+    E --> E1[notices_service::get_active_notices]
+    E1 --> E2[Filtrar por enabled + datas + turma]
     
-    F --> F1[Loop 4 banners]
-    F1 --> F2[Buscar arquivo]
+    F --> F1[banners_service::get_active_banners]
+    F1 --> F2[Buscar imagem do File API]
     F2 --> F3[Gerar URL pluginfile]
     
-    C3 --> G[Array de dados]
-    D4 --> G
-    E2 --> G
-    F3 --> G
+    G --> G1[report_calendario_get_widget_data]
+    G1 --> G2[Timeline + filtros]
     
-    G --> H[renderer::render_landing]
-    H --> I[Template Mustache]
-    I --> J[HTML Final]
+    C4 --> H[Array de dados]
+    D4 --> H
+    E2 --> H
+    F3 --> H
+    G2 --> H
+    
+    H --> I[renderer::render_landing]
+    I --> J[Template Mustache]
+    J --> K[HTML Final]
 ```
 
 ---
@@ -792,16 +883,16 @@ AND EXISTS (SELECT 1 FROM {messages} ...)
 ```
 
 ### 9.3 Frontend
-- **CSS Minificado**: Arquivo único de 51 linhas
+- **CSS Otimizado**: Arquivo único com ~200 linhas
 - **JavaScript Assíncrono**: Não bloqueia renderização
-- **Lazy Loading**: Imagens carregadas apenas quando necessário
-- **Batch Requests**: Uma única requisição AJAX para atualizar
+- **Lazy Loading**: Imagens de banner com `loading="lazy"`
+- **Batch Requests**: Uma única requisição AJAX para atualizar mensagens
 
 ### 9.4 Limitações de Dados
 - **Conversas**: Top 50, filtra para 5
 - **Cursos**: Apenas visíveis
 - **Mensagens**: Última por conversa
-- **Banners**: Máximo 4
+- **Banners**: Sem limite (ordenados por sortorder)
 
 ---
 
@@ -811,7 +902,7 @@ AND EXISTS (SELECT 1 FROM {messages} ...)
 - 🇧🇷 Português Brasileiro (pt_br) - **Completo**
 - 🇺🇸 Inglês (en) - **Completo**
 
-### 10.2 Strings Principais (54 strings)
+### 10.2 Strings Principais
 
 **Interface:**
 - `pluginname` - Portal Acadêmico
@@ -821,19 +912,20 @@ AND EXISTS (SELECT 1 FROM {messages} ...)
 **Cards:**
 - `mycourses` - Minhas Disciplinas
 - `messages` - Mensagens
-- `announcements` - Calendário Acadêmico
+- `calendario` - Calendário Acadêmico
 
-**Mensagens de Estado:**
-- `nocourses` - Nenhuma matrícula ativa encontrada
-- `nomessages` - Nenhuma mensagem recente
-- `noann` - Configure uma mensagem nas configurações
+**Avisos:**
+- `notices_manage` - Gerenciar Avisos
+- `notice_add` / `notice_edit` / `notice_saved` / `notice_deleted`
+- `notice_type_info` / `warning` / `danger` / `success`
+
+**Banners:**
+- `banners_manage` - Gerenciar Banners
+- `banner_add` / `banner_edit` / `banner_saved` / `banner_deleted`
 
 **Configurações:**
 - `enabledredirect` - Redirecionar usuários após o login
-- `announcementsfallback` - Conteúdo das informações importantes
-- `banner{n}_file` - Banner N - Arquivo de Imagem
-- `banner{n}_alt` - Banner N - Texto Alternativo
-- `banner{n}_link` - Banner N - Link de Destino
+- `supportname` / `supportemail` / `supportphone` / etc.
 
 ### 10.3 Uso no Código
 ```php
@@ -875,20 +967,18 @@ Administração → Plugins → Plugins locais → Portal Acadêmico
 ✅ Habilitar redirecionamento após login
 ```
 
-#### 2. Configurar Anúncios
+#### 2. Gerenciar Avisos
 ```
-Conteúdo das informações importantes:
-- Digite texto com formatação rica
-- Adicione imagens inline
-- Suporta HTML completo
+Administração → Plugins → Plugins locais → Gerenciar Avisos
+- Adicionar avisos com título, texto, tipo e agendamento
+- Arrastar para reordenar
 ```
 
-#### 3. Configurar Banners (Opcional)
-Para cada banner (1-4):
+#### 3. Gerenciar Banners
 ```
-1. Fazer upload da imagem (JPG, PNG, GIF, WebP)
-2. Definir texto alternativo (acessibilidade)
-3. Definir link de destino (opcional)
+Administração → Plugins → Plugins locais → Gerenciar Banners
+- Adicionar banners com upload de imagem (JPG, PNG, GIF, WebP)
+- Definir link opcional e texto alternativo
 ```
 
 #### 4. Testar
@@ -896,7 +986,7 @@ Para cada banner (1-4):
 1. Fazer logout
 2. Fazer login novamente
 3. Verificar redirecionamento
-4. Verificar todos os cards
+4. Verificar todas as seções do dashboard
 ```
 
 ---
@@ -914,10 +1004,9 @@ php admin/cli/purge_caches.php
 
 #### Banners não aparecem
 **Diagnóstico:**
-1. Verificar upload em Settings
-2. Verificar permissions de arquivos
-3. Verificar função pluginfile em lib.php
-4. Testar URL direta: `/pluginfile.php/1/local_dashboard/banner1/0/image.jpg`
+1. Verificar se o banner está ativo em Gerenciar Banners
+2. Verificar se a imagem foi enviada corretamente
+3. Testar URL direta: `/pluginfile.php/1/local_dashboard/banners/{id}/imagem.jpg`
 
 #### Redirecionamento não funciona
 **Diagnóstico:**
@@ -954,67 +1043,63 @@ curl -X POST http://moodle.local/local/dashboard/ajax/messages.php \
 
 ## 13. Estrutura de Template (Mustache)
 
-### 13.1 Template Principal (landing.mustache)
+### 13.1 Template Principal (landing.mustache) — Estrutura Atual
 
 ```mustache
 <div class="pp-container">
   <!-- Header -->
   <div class="pp-header">
-    <h2>{{#str}} welcome_title {{/str}}, {{userfullname}} 👋</h2>
-    <p>{{#str}} welcome_sub {{/str}}</p>
+    <h2>{{#str}} welcome_title, local_dashboard {{/str}}, {{userfullname}} 👋</h2>
+    <p>{{#str}} welcome_sub, local_dashboard {{/str}}</p>
   </div>
 
   <div class="pp-grid">
-    <!-- Card 1: Disciplinas -->
-    <section class="pp-card">
-      <h3>📚 {{#str}} mycourses {{/str}}</h3>
-      {{#courses}}
-        <div class="pp-category-group">
-          <h4>{{categoryname}} ({{coursecount}})</h4>
-          {{#courses}}
-            <a href="{{url}}">{{fullname}}</a>
-          {{/courses}}
+    <!-- Avisos Dinâmicos -->
+    {{#hasnotices}}
+    <div class="pp-notices pp-notices-{{notices.0.type}}" id="pp-notices-bar">
+      <span class="pp-notices-icon">{{notices.0.icon}}</span>
+      <div class="pp-notices-body">
+        <div class="pp-notices-title">{{notices.0.title}}</div>
+        {{#notices.0.body}}<p class="pp-notices-text">{{{notices.0.body}}}</p>{{/notices.0.body}}
+      </div>
+      <div class="pp-notices-nav">
+        <span class="pp-notices-counter"></span>
+        <button onclick="ppNoticeNav(-1)">&#8592;</button>
+        <button onclick="ppNoticeToggleAuto()">⏸</button>
+        <button onclick="ppNoticeNav(1)">&#8594;</button>
+      </div>
+    </div>
+    {{/hasnotices}}
+
+    <!-- Banners / Carrossel -->
+    {{#hasbanners}}
+    <section class="pp-card pp-card-banners">
+      <div class="pp-banners-carousel">
+        <div class="pp-banners-track">
+          {{#banners}}
+          <div class="pp-banner-slide">
+            {{#has_link}}<a href="{{link_url}}"><img src="{{imageurl}}" alt="{{alt_text}}"></a>{{/has_link}}
+            {{^has_link}}<img src="{{imageurl}}" alt="{{alt_text}}">{{/has_link}}
+          </div>
+          {{/banners}}
         </div>
-      {{/courses}}
-      {{#coursesempty}}
-        <p class="pp-empty">{{#str}} nocourses {{/str}}</p>
-      {{/coursesempty}}
+        {{#bannersmorethanone}}
+        <button class="pp-carousel-btn pp-carousel-prev">&#10094;</button>
+        <button class="pp-carousel-btn pp-carousel-next">&#10095;</button>
+        <div class="pp-carousel-dots"></div>
+        {{/bannersmorethanone}}
+      </div>
     </section>
+    {{/hasbanners}}
 
-    <!-- Card 2: Mensagens -->
-    <section class="pp-card">
-      <h3>💬 {{#str}} messages {{/str}}</h3>
-      <p class="pp-kpi">{{totalunreadconversations}}</p>
-      {{#messages}}
-        <a href="{{url}}">
-          <div>{{name}}</div>
-          <div>{{sendername}}{{lastmessage}}</div>
-          <span class="pp-message-unread">{{unreadcount}}</span>
-        </a>
-      {{/messages}}
-      <a href="{{allmessagesurl}}">Ver todas</a>
-    </section>
+    <!-- Mensagens -->
+    <section class="pp-card pp-card-messages">...</section>
 
-    <!-- Card 3: Anúncios e Banners -->
-    <section class="pp-card">
-      <h3>📅 {{#str}} announcements {{/str}}</h3>
-      
-      {{#announcements}}
-        <div>{{{fulltext}}}</div>
-        <p>{{time}}</p>
-      {{/announcements}}
-      
-      {{#banners}}
-        {{#haslink}}
-          <a href="{{link}}">
-            <img src="{{url}}" alt="{{alt}}">
-          </a>
-        {{/haslink}}
-        {{^haslink}}
-          <img src="{{url}}" alt="{{alt}}">
-        {{/haslink}}
-      {{/banners}}
-    </section>
+    <!-- Minhas Disciplinas -->
+    <section class="pp-card">...</section>
+
+    <!-- Calendário Acadêmico -->
+    <section class="pp-card pp-card-calendario">...</section>
   </div>
 </div>
 ```
@@ -1023,17 +1108,12 @@ curl -X POST http://moodle.local/local/dashboard/ajax/messages.php \
 ```php
 [
     'userfullname' => 'João Silva',
-    'courses' => [
-        [
-            'categoryname' => 'Exatas',
-            'coursecount' => 2,
-            'courses' => [
-                ['id' => 1, 'fullname' => 'Cálculo I', 'url' => '...'],
-                ['id' => 2, 'fullname' => 'Física', 'url' => '...']
-            ]
-        ]
-    ],
+    'courses' => [/* disciplinas por categoria com badges de papel */],
     'coursesempty' => false,
+    'coursesbypolo' => [/* disciplinas por polo */],
+    'haspoloview' => true,
+    'rolefilters' => [['roleshort' => 'teacher', 'rolename' => 'Professor'], ...],
+    'hasrolefilter' => true,
     'messages' => [
         [
             'id' => 100,
@@ -1049,25 +1129,32 @@ curl -X POST http://moodle.local/local/dashboard/ajax/messages.php \
     'messagesempty' => false,
     'totalunreadconversations' => 5,
     'allmessagesurl' => '/message/index.php',
-    'announcements' => [
+    'notices' => [
         [
-            'title' => 'Informações importantes',
-            'excerpt' => 'Resumo...',
-            'fulltext' => '<p>HTML completo...</p>',
-            'time' => '08/01/2026 14:30',
-            'url' => '#'
+            'id' => 1,
+            'title' => 'Aviso importante',
+            'body' => '<p>Conteúdo HTML</p>',
+            'type' => 'warning',
+            'icon' => '⚠️',
         ]
     ],
+    'hasnotices' => true,
+    'noticesJson' => '[{"id":1,...}]',
     'banners' => [
         [
-            'url' => '/pluginfile.php/1/local_dashboard/banner1/0/imagem.jpg',
-            'alt' => 'Banner 1',
-            'link' => 'https://example.com',
-            'haslink' => true,
-            'number' => 1
+            'id' => 1,
+            'name' => 'Promoção',
+            'alt_text' => 'Banner de promoção',
+            'link_url' => 'https://example.com',
+            'has_link' => true,
+            'imageurl' => '/pluginfile.php/1/local_dashboard/banners/1/imagem.jpg',
         ]
     ],
-    'mycoursesurl' => '/my/courses.php'
+    'hasbanners' => true,
+    'bannersmorethanone' => false,
+    'calendario' => [/* dados do calendário acadêmico */],
+    'hascalendario' => true,
+    'mycoursesurl' => '/my/courses.php',
 ]
 ```
 
@@ -1098,6 +1185,18 @@ private static function get_recent_grades($userid) {
     return [...];
 }
 ```
+
+### 14.2 Adicionar Novo Tipo de Conteúdo (Ex: Banners)
+
+Para adicionar um novo tipo de conteúdo gerenciável (como banners ou avisos):
+
+1. **Tabela**: Adicionar em `db/install.xml` e `db/upgrade.php`
+2. **Service**: Criar `classes/local/{name}_service.php` com CRUD
+3. **Manage page**: Criar `manage_{name}.php` com listagem e formulário
+4. **Settings**: Registrar página admin externa em `settings.php`
+5. **Service principal**: Adicionar coleta em `classes/local/service.php`
+6. **Template**: Adicionar renderização em `templates/landing.mustache`
+7. **Lang**: Adicionar strings em ambos os idiomas
 
 **2. Modificar template `landing.mustache`:**
 ```mustache

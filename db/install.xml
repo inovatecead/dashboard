@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8" ?>
-<XMLDB PATH="local/dashboard/db" VERSION="20260331" COMMENT="XMLDB file for local_dashboard"
+<XMLDB PATH="local/dashboard/db" VERSION="20260623b" COMMENT="XMLDB file for local_dashboard"
     xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
     xsi:noNamespaceSchemaLocation="../../../lib/xmldb/xmldb.xsd"
 >
@@ -15,6 +15,26 @@
         <FIELD NAME="date_start" TYPE="int" LENGTH="10" NOTNULL="false" SEQUENCE="false" COMMENT="Timestamp de início da exibição (nulo = imediato)"/>
         <FIELD NAME="turma" TYPE="char" LENGTH="10" NOTNULL="false" SEQUENCE="false" COMMENT="Turma/cohort alvo: 2022, 2024 ou nulo = todas"/>
         <FIELD NAME="date_end" TYPE="int" LENGTH="10" NOTNULL="false" SEQUENCE="false" COMMENT="Timestamp de fim da exibição (nulo = sem fim)"/>
+        <FIELD NAME="timecreated" TYPE="int" LENGTH="10" NOTNULL="true" DEFAULT="0" SEQUENCE="false"/>
+        <FIELD NAME="timemodified" TYPE="int" LENGTH="10" NOTNULL="true" DEFAULT="0" SEQUENCE="false"/>
+        <FIELD NAME="usermodified" TYPE="int" LENGTH="10" NOTNULL="true" DEFAULT="0" SEQUENCE="false"/>
+      </FIELDS>
+      <KEYS>
+        <KEY NAME="primary" TYPE="primary" FIELDS="id"/>
+      </KEYS>
+      <INDEXES>
+        <INDEX NAME="enabled_sortorder" UNIQUE="false" FIELDS="enabled, sortorder"/>
+      </INDEXES>
+    </TABLE>
+    <TABLE NAME="local_dashboard_banners" COMMENT="Banners para carrossel do dashboard">
+      <FIELDS>
+        <FIELD NAME="id" TYPE="int" LENGTH="10" NOTNULL="true" SEQUENCE="true"/>
+        <FIELD NAME="name" TYPE="char" LENGTH="255" NOTNULL="true" SEQUENCE="false" COMMENT="Nome interno do banner"/>
+        <FIELD NAME="alt_text" TYPE="char" LENGTH="255" NOTNULL="false" SEQUENCE="false" COMMENT="Texto alternativo (acessibilidade)"/>
+        <FIELD NAME="link_url" TYPE="char" LENGTH="255" NOTNULL="false" SEQUENCE="false" COMMENT="URL de destino (opcional)"/>
+        <FIELD NAME="enabled" TYPE="int" LENGTH="1" NOTNULL="true" DEFAULT="1" SEQUENCE="false" COMMENT="1=ativo, 0=inativo"/>
+        <FIELD NAME="sortorder" TYPE="int" LENGTH="10" NOTNULL="true" DEFAULT="0" SEQUENCE="false" COMMENT="Ordem de exibição"/>
+        <FIELD NAME="turma" TYPE="char" LENGTH="10" NOTNULL="false" SEQUENCE="false" COMMENT="Turma/cohort alvo: 2022, 2024 ou nulo = todas"/>
         <FIELD NAME="timecreated" TYPE="int" LENGTH="10" NOTNULL="true" DEFAULT="0" SEQUENCE="false"/>
         <FIELD NAME="timemodified" TYPE="int" LENGTH="10" NOTNULL="true" DEFAULT="0" SEQUENCE="false"/>
         <FIELD NAME="usermodified" TYPE="int" LENGTH="10" NOTNULL="true" DEFAULT="0" SEQUENCE="false"/>

@@ -9,6 +9,13 @@ if ($hassiteconfig) {
         new moodle_url('/local/dashboard/manage_notices.php')
     ));
 
+    // Register external admin page for banners management.
+    $ADMIN->add('localplugins', new admin_externalpage(
+        'local_dashboard_banners',
+        get_string('banners_manage', 'local_dashboard'),
+        new moodle_url('/local/dashboard/manage_banners.php')
+    ));
+
     $settings = new admin_settingpage('local_dashboard', get_string('pluginname', 'local_dashboard'));
 
     // Toggle redirect

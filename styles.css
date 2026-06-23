@@ -135,6 +135,41 @@
 /* Tooltip */
 .tooltip-inner{max-width:250px;text-align:left;padding:10px 12px;}
 
+/* ─── Banners / Carrossel ─────────────────────────────────────────────────── */
+.pp-card-banners{grid-column:1/-1;padding:0;overflow:hidden;border-radius:16px;}
+.pp-banners-carousel{position:relative;width:100%;overflow:hidden;background:#f9fafb;}
+.pp-banners-track{display:flex;transition:transform 0.5s ease-in-out;will-change:transform;}
+.pp-banner-slide{min-width:100%;flex-shrink:0;}
+.pp-banner-img{display:block;width:100%;height:auto;max-height:320px;object-fit:cover;}
+.pp-banner-link{display:block;text-decoration:none;}
+.pp-banner-link:hover{opacity:0.95;}
+/* Setas */
+.pp-carousel-btn{position:absolute;top:50%;transform:translateY(-50%);z-index:10;
+  background:rgba(255,255,255,0.85);border:1px solid rgba(0,0,0,0.08);
+  border-radius:50%;width:38px;height:38px;font-size:1.1rem;font-weight:bold;
+  cursor:pointer;color:#374151;display:flex;align-items:center;justify-content:center;
+  box-shadow:0 2px 6px rgba(0,0,0,0.12);transition:all 0.2s;opacity:0;}
+.pp-banners-carousel:hover .pp-carousel-btn{opacity:1;}
+.pp-carousel-btn:hover{background:#fff;box-shadow:0 3px 10px rgba(0,0,0,0.18);color:#111;}
+.pp-carousel-prev{left:12px;}
+.pp-carousel-next{right:12px;}
+/* Dots */
+.pp-carousel-dots{position:absolute;bottom:12px;left:50%;transform:translateX(-50%);
+  display:flex;gap:8px;z-index:10;background:rgba(0,0,0,0.35);
+  padding:6px 12px;border-radius:20px;opacity:0;transition:opacity 0.3s;}
+.pp-banners-carousel:hover .pp-carousel-dots{opacity:1;}
+.pp-carousel-dot{width:10px;height:10px;border-radius:50%;border:2px solid rgba(255,255,255,0.7);
+  background:transparent;cursor:pointer;padding:0;transition:all 0.25s;}
+.pp-carousel-dot.active{background:#fff;border-color:#fff;transform:scale(1.2);}
+.pp-carousel-dot:hover{background:rgba(255,255,255,0.5);}
+/* Mobile: always show controls */
+@media (max-width: 768px) {
+  .pp-carousel-btn{opacity:1;width:32px;height:32px;font-size:0.9rem;}
+  .pp-carousel-dots{opacity:1;bottom:8px;padding:4px 10px;}
+  .pp-carousel-dot{width:8px;height:8px;}
+  .pp-banner-img{max-height:200px;}
+}
+
 @media (min-width: 769px) {
     .pp-messages-grid{grid-template-columns:repeat(2,1fr);gap:0 12px;}
     .pp-messages-grid .pp-message-item{margin:4px 0;}

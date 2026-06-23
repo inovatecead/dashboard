@@ -22,6 +22,38 @@
     </div>
     {{/hasnotices}}
 
+    {{#hasbanners}}
+    <!-- Banners / Carrossel -->
+    <section class="pp-card pp-card-banners">
+      <div class="pp-banners-carousel" id="pp-banners-carousel">
+        <div class="pp-banners-track" id="pp-banners-track">
+          {{#banners}}
+          <div class="pp-banner-slide">
+            {{#has_link}}
+            <a href="{{link_url}}" target="_blank" rel="noopener" class="pp-banner-link">
+              <img src="{{imageurl}}" alt="{{alt_text}}" class="pp-banner-img" loading="lazy">
+            </a>
+            {{/has_link}}
+            {{^has_link}}
+            <img src="{{imageurl}}" alt="{{alt_text}}" class="pp-banner-img" loading="lazy">
+            {{/has_link}}
+          </div>
+          {{/banners}}
+        </div>
+
+        {{#bannersmorethanone}}
+        <!-- Setas de navegação -->
+        <button class="pp-carousel-btn pp-carousel-prev" id="pp-carousel-prev" type="button" aria-label="Anterior">&#10094;</button>
+        <button class="pp-carousel-btn pp-carousel-next" id="pp-carousel-next" type="button" aria-label="Próximo">&#10095;</button>
+
+        <!-- Indicadores (dots) -->
+        <div class="pp-carousel-dots" id="pp-carousel-dots">
+        </div>
+        {{/bannersmorethanone}}
+      </div>
+    </section>
+    {{/hasbanners}}
+
     <!-- Mensagens -->
     <section class="pp-card pp-card-messages">
       <div class="pp-messages-header">
@@ -407,6 +439,97 @@ window.cwUpdateFilters = function() {
 
     render(0);
     if (counter) { counter.textContent = '1 / ' + notices.length; }
+    startTimer();
+})();
+
+// ─── Banners / Carrossel ──────────────────────────────────────────────────────
+(function() {
+    var track = document.getElementById('pp-banners-track');
+    if (!track) { return; }
+
+    var slides = track.querySelectorAll('.pp-banner-slide');
+    if (slides.length < 1) { return; }
+
+    var current   = 0;
+    var total     = slides.length;
+    var autoTimer = null;
+    var AUTO_INTERVAL = 5000; // ms
+
+    var prevBtn = document.getElementById('pp-carousel-prev');
+    var nextBtn = document.getElementById('pp-carousel-next');
+    var dotsContainer = document.getElementById('pp-carousel-dots');
+
+    // Create dots dynamically if there are more than 1 slide.
+    var dots = [];
+    if (dotsContainer && total > 1) {
+        for (var i = 0; i < total; i++) {
+            var dot = document.createElement('button');
+            dot.className = 'pp-carousel-dot' + (i === 0 ? ' active' : '');
+            dot.setAttribute('data-slide', i);
+            dot.setAttribute('type', 'button');
+            dot.setAttribute('aria-label', 'Slide ' + (i + 1));
+            dotsContainer.appendChild(dot);
+            dots.push(dot);
+
+            dot.addEventListener('click', (function(idx) {
+                return function() { goToSlide(idx); };
+            })(i));
+        }
+    }
+
+    function goToSlide(idx) {
+        if (idx < 0) { idx = total - 1; }
+        if (idx >= total) { idx = 0; }
+        current = idx;
+        track.style.transform = 'translateX(-' + (current * 100) + '%)';
+
+        // Update dots.
+        for (var d = 0; d < dots.length; d++) {
+            dots[d].classList.toggle('active', d === current);
+        }
+
+        resetTimer();
+    }
+
+    function nextSlide() { goToSlide(current + 1); }
+    function prevSlide() { goToSlide(current - 1); }
+
+    function startTimer() {
+        stopTimer();
+        if (total < 2) { return; }
+        autoTimer = setInterval(nextSlide, AUTO_INTERVAL);
+    }
+
+    function stopTimer() {
+        if (autoTimer) { clearInterval(autoTimer); autoTimer = null; }
+    }
+
+    function resetTimer() {
+        if (total >= 2) { startTimer(); }
+    }
+
+    // Event listeners for prev/next buttons.
+    if (prevBtn) {
+        prevBtn.addEventListener('click', function(e) {
+            e.preventDefault();
+            prevSlide();
+        });
+    }
+    if (nextBtn) {
+        nextBtn.addEventListener('click', function(e) {
+            e.preventDefault();
+            nextSlide();
+        });
+    }
+
+    // Pause auto-play on hover.
+    var carousel = document.getElementById('pp-banners-carousel');
+    if (carousel) {
+        carousel.addEventListener('mouseenter', stopTimer);
+        carousel.addEventListener('mouseleave', function() { if (total >= 2) { startTimer(); } });
+    }
+
+    // Start auto-play.
     startTimer();
 })();
 {{/js}}

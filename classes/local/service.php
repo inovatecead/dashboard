@@ -267,6 +267,10 @@ class service {
         $active_notices = notices_service::get_active_notices((int)$user->id);
         $notices_ctx    = notices_service::to_template_context($active_notices);
 
+        // Banners ativos para carrossel (filtrados por turma do usuário)
+        $active_banners = banners_service::get_active_banners((int)$user->id);
+        $banners_ctx    = banners_service::to_template_context($active_banners);
+
         return [
             'courses'        => $coursesarr,
             'coursesempty'   => empty($coursesarr),
@@ -283,6 +287,9 @@ class service {
             'notices'        => $notices_ctx,
             'hasnotices'     => !empty($notices_ctx),
             'noticesJson'    => json_encode($notices_ctx, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT),
+            'banners'        => $banners_ctx,
+            'hasbanners'     => !empty($banners_ctx),
+            'bannersmorethanone' => count($banners_ctx) > 1,
         ];
     }
     

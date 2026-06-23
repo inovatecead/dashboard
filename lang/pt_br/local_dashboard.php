@@ -61,3 +61,11 @@ $string['notice_type_danger'] = 'Urgente';
 $string['notice_type_success'] = 'Sucesso';
 $string['notices_turma_all'] = 'Todas as turmas';
 $string['notices_turma_label'] = 'Turma';
+
+// Banners
+$string['banners_manage'] = 'Gerenciar Banners';
+$string['banner_add'] = 'Novo Banner';
+$string['banner_edit'] = 'Editar Banner';
+$string['banner_saved'] = 'Banner salvo com sucesso.';
+$string['banner_deleted'] = 'Banner excluído.';
+$string['banners_empty'] = 'Nenhum banner cadastrado.';
