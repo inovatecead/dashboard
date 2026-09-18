@@ -17,6 +17,13 @@ class observers {
         return;
     }
 
+    // Não intercepta se veio do fluxo OAuth (login via sistema de seleção)
+    global $SESSION;
+    $wantsurl = $SESSION->wantsurl ?? '';
+    if (strpos($wantsurl, '/local/oauth2server/') !== false) {
+        return;
+    }
+
     $flag = optional_param('pp_redirect', 0, PARAM_INT);
     if (!$flag) {
       $url = new \moodle_url('/local/dashboard/index.php', ['pp_redirect' => 1]);
